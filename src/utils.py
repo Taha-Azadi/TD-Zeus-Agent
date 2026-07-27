@@ -393,9 +393,9 @@ def open_any_type(self):
         if f"open {site[0]}" in self.text.lower():
             webbrowser.open(f"{site[1]}")
             print(f"Zeus: I opened {site[0]} for you.")
-    if "open" in self.text.lower() and "music" in self.text.lower():
+    if (("open" in self.text.lower() and "music" in self.text.lower()) or ("open" in self.text.lower() and "song" in self.text.lower())):
 
-        music_name = self.text.lower().replace("open", "").replace("music", "").strip()
+        music_name = self.text.lower().replace("open", "").replace("music", "").replace("song", "").strip()
 
         if play_music(music_name):
             print(f"Zeus: Playing {music_name}")
