@@ -16,12 +16,12 @@
 <p><b>A powerful, Agent made with ♥ by Taha-Azadi.</b></p>
 
 <p>
-  <a href="#features">Features</a> •
-  <a href="#screenshots">Screenshots</a> •
-  <a href="#installation">Installation</a> •
-  <a href="#usage">Usage</a> •
-  <a href="#keyboard-shortcuts">Shortcuts</a> •
-  <a href="#tech-stack">Tech Stack</a>
+  <a href="#-features">Features</a> •
+  <a href="#-screenshots">Screenshots</a> •
+  <a href="#-installation">Installation</a> •
+  <a href="#-usage">Usage</a> •
+  <a href="#-keyboard-shortcuts">Shortcuts</a> •
+  <a href="#-tech-stack">Tech Stack</a>
 </p>
 
 </div>
