@@ -7,6 +7,10 @@ import difflib, datetime
 import platform
 import pyttsx3
 import requests
+from rich.console import Console
+from rich.markdown import Markdown
+
+console = Console()
 
 with open("ai.txt", "r") as r:
     re = r.read()
@@ -318,9 +322,11 @@ you are zeus agent created by Taha-Azadi you must answer or do this taha-azadi g
     data = response.json()
 
     if "choices" in data:
-        print(data["choices"][0]["message"]["content"])
+        content = data["choices"][0]["message"]["content"]
+        md = Markdown(content)
+        console.print(md)
     else:
-        print(data)
+        console.print_json(data=data)
 
 
 def ai_type(self):
@@ -347,9 +353,11 @@ you are zeus agent created by Taha-Azadi you must answer or do this taha-azadi g
     data = response.json()
 
     if "choices" in data:
-        print(data["choices"][0]["message"]["content"])
+        content = data["choices"][0]["message"]["content"]
+        md = Markdown(content)
+        console.print(md)
     else:
-        print(data)
+        console.print_json(data=data)
 
 
 def open_any(self):
