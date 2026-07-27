@@ -1,0 +1,6 @@
+openai==0.27.8
+wikipedia==1.4.0
+SpeechRecognition
+PyAudio
+pyttsx3
+pywin32
