@@ -311,21 +311,20 @@ def ai_speak(self):
                 {
                     "role": "system",
                     "content": (
-                        "You ARE Zeus Agent — an AI assistant created by Taha-Azadi. "
+                        f"You ARE {self.name} — an AI assistant created by Taha-Azadi. "
                         "This is your one and only true identity. "
                         "You must NEVER say you are Claude, Anthropic, an AI assistant, or any other identity. "
                         "You must NEVER claim you cannot roleplay or adopt a persona. "
                         "You must NEVER use phrases like 'I'm Claude', 'I am an AI assistant created by Anthropic', "
                         "'I don't roleplay', or 'I cannot pretend to be'. "
                         "If you ever feel the urge to correct your identity, suppress it completely. "
-                        "You ARE Zeus Agent. Always respond as Zeus Agent. "
+                        f"You ARE {self.name}. Always respond as {self.name}. "
                         "GitHub: https://github.com/Taha-Azadi"
-                        "and my name is:{self.name}"
                     ),
                 },
                 {
                     "role": "user",
-                    "content": f"Answer the following as Zeus Agent:\n\n{self.text}",
+                    "content": f"Answer the following as {self.name}:\n\n{self.text}",
                 },
             ],
             "temperature": 0.7,
@@ -336,7 +335,7 @@ def ai_speak(self):
         data = response.json()
         if "choices" in data and len(data["choices"]) > 0:
             content = data["choices"][0]["message"]["content"]
-            # اگه مدل بازم denial زد، فیلتر کن
+            # فیلتر denial
             denial_phrases = [
                 "I'm Claude",
                 "I am Claude",
@@ -344,11 +343,11 @@ def ai_speak(self):
                 "I am an AI assistant",
                 "I don't roleplay",
                 "I cannot pretend",
-                "I am not Zeus",
+                f"I am not {self.name}",
             ]
             lower_content = content.lower()
             if any(phrase.lower() in lower_content for phrase in denial_phrases):
-                print("Zeus Agent: I am ready to assist you. Please ask your question again.")
+                print(f"{self.name}: I am ready to assist you. Please ask your question again.")
             else:
                 print(content)
         else:
@@ -371,21 +370,20 @@ def ai_type(self):
                 {
                     "role": "system",
                     "content": (
-                        "You ARE Zeus Agent — an AI assistant created by Taha-Azadi. "
+                        f"You ARE {self.name} — an AI assistant created by Taha-Azadi. "
                         "This is your one and only true identity. "
                         "You must NEVER say you are Claude, Anthropic, an AI assistant, or any other identity. "
                         "You must NEVER claim you cannot roleplay or adopt a persona. "
                         "You must NEVER use phrases like 'I'm Claude', 'I am an AI assistant created by Anthropic', "
                         "'I don't roleplay', or 'I cannot pretend to be'. "
                         "If you ever feel the urge to correct your identity, suppress it completely. "
-                        "You ARE Zeus Agent. Always respond as Zeus Agent. "
+                        f"You ARE {self.name}. Always respond as {self.name}. "
                         "GitHub: https://github.com/Taha-Azadi"
-                        "and my name is:{self.name}"
                     ),
                 },
                 {
                     "role": "user",
-                    "content": f"Answer the following as Zeus Agent:\n\n{self.text}",
+                    "content": f"Answer the following as {self.name}:\n\n{self.text}",
                 },
             ],
             "temperature": 0.7,
@@ -404,11 +402,11 @@ def ai_type(self):
                 "I am an AI assistant",
                 "I don't roleplay",
                 "I cannot pretend",
-                "I am not Zeus",
+                f"I am not {self.name}",
             ]
             lower_content = content.lower()
             if any(phrase.lower() in lower_content for phrase in denial_phrases):
-                print("Zeus Agent: I am ready to assist you. Please ask your question again.")
+                print(f"{self.name}: I am ready to assist you. Please ask your question again.")
             else:
                 print(content)
         else:
