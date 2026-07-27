@@ -6,6 +6,7 @@ from src.utils import (
     hey_Zeus_type,
     time_type,
     ai_type,
+    clear,
 )
 
 
@@ -30,6 +31,8 @@ class Type:
 
                 elif "hello" in self.text.lower() or "hi " in self.text.lower():
                     generate_and_hello_type(self)
+                elif "clear" in self.text.lower() or "cls " in self.text.lower():
+                    clear()
                 elif any(
                     x in self.text for x in ["hey Zeus", "Zeus", "hey z", "hello Zeus"]
                 ):
