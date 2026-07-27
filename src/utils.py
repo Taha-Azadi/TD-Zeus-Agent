@@ -357,7 +357,7 @@ def open_any(self):
             webbrowser.open(f"{site[1]}")
             self.say(f"I opened {site[0]} for you.")
             print(f"Zeus: I opened {site[0]} for you.")
-    if "open" in self.text.lower() and "music" in self.text.lower():
+    if "open" in self.text.lower() and "music" in self.text.lower() or "song" in self.text.lower():
 
         music_name = self.text.lower().replace("open", "").replace("music", "").strip()
 
