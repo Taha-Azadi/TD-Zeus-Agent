@@ -8,6 +8,7 @@ from src.utils import (
     say,
     time,
     ai_speak,
+    clear,
 )
 
 
@@ -35,6 +36,8 @@ class Speak:
 
                 elif "hello" in self.text.lower() or "hi " in self.text.lower():
                     generate_and_hello(self)
+                elif "clear" in self.text.lower() or "cls " in self.text.lower():
+                    clear()
                 elif any(
                     x in self.text for x in ["hey Zeus", "Zeus", "hey z", "hello Zeus"]
                 ):
