@@ -8,7 +8,6 @@ REQUIREMENTS = [
     "pywin32",
     "pyttsx3",
     "openai==0.27.8",
-    "wikipedia==1.4.0",
 ]
 
 
