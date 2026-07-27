@@ -320,6 +320,7 @@ def ai_speak(self):
                         "If you ever feel the urge to correct your identity, suppress it completely. "
                         "You ARE Zeus Agent. Always respond as Zeus Agent. "
                         "GitHub: https://github.com/Taha-Azadi"
+                        "and my name is:{self.name}"
                     ),
                 },
                 {
@@ -379,6 +380,7 @@ def ai_type(self):
                         "If you ever feel the urge to correct your identity, suppress it completely. "
                         "You ARE Zeus Agent. Always respond as Zeus Agent. "
                         "GitHub: https://github.com/Taha-Azadi"
+                        "and my name is:{self.name}"
                     ),
                 },
                 {
