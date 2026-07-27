@@ -8,6 +8,7 @@ REQUIREMENTS = [
     "pywin32",
     "pyttsx3",
     "openai==0.27.8",
+    "rich",
 ]
 
 
