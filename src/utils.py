@@ -872,7 +872,7 @@ def open_any_type(self):
         print("Zeus I open camera for you")
 
 
-def time(self):
+def wtime(self):
     hour = datetime.datetime.now().strftime("%H")
     min = datetime.datetime.now().strftime("%M")
     sec = datetime.datetime.now().strftime("%S")
