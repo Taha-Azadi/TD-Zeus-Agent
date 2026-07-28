@@ -9,10 +9,11 @@ import pyttsx3
 import requests
 from colorama import Fore
 import json
-import time
 import threading
 import itertools
 from pathlib import Path
+import time as _time
+
 try:
     from rich.console import Console
     from rich.markdown import Markdown
@@ -24,17 +25,19 @@ except ImportError:
     console = None
 
 
+# ==================== TOOLS SCHEMA ====================
+
 TOOLS_SCHEMA = [
     {
         "type": "function",
         "function": {
             "name": "run_shell_command",
-            "description": "Execute a shell command on the computer. Use for file operations, git, pip, system commands, etc.",
+            "description": "Execute a shell command on the computer.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "command": {"type": "string", "description": "Shell command to run."},
-                    "cwd": {"type": "string", "description": "Optional working directory."}
+                    "command": {"type": "string"},
+                    "cwd": {"type": "string"}
                 },
                 "required": ["command"]
             }
@@ -48,7 +51,7 @@ TOOLS_SCHEMA = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "path": {"type": "string", "description": "Directory path. Defaults to current directory.", "default": "."}
+                    "path": {"type": "string", "default": "."}
                 },
                 "required": []
             }
@@ -58,12 +61,12 @@ TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "read_file_content",
-            "description": "Read content of a text file.",
+            "description": "Read a text file.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "filepath": {"type": "string", "description": "Path to the file."},
-                    "max_chars": {"type": "integer", "description": "Max characters to read.", "default": 8000}
+                    "filepath": {"type": "string"},
+                    "max_chars": {"type": "integer", "default": 8000}
                 },
                 "required": ["filepath"]
             }
@@ -73,12 +76,12 @@ TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "write_file_content",
-            "description": "Write or overwrite content to a file.",
+            "description": "Write or overwrite a file.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "filepath": {"type": "string", "description": "Path to the file."},
-                    "content": {"type": "string", "description": "Content to write."}
+                    "filepath": {"type": "string"},
+                    "content": {"type": "string"}
                 },
                 "required": ["filepath", "content"]
             }
@@ -96,11 +99,11 @@ TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "take_screenshot",
-            "description": "Take a screenshot and save it.",
+            "description": "Take a screenshot.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "save_path": {"type": "string", "description": "Save path. Default: screenshot.png", "default": "screenshot.png"}
+                    "save_path": {"type": "string", "default": "screenshot.png"}
                 },
                 "required": []
             }
@@ -110,11 +113,11 @@ TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "open_application",
-            "description": "Open an application by name.",
+            "description": "Open an app by name.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "app_name": {"type": "string", "description": "Application name."}
+                    "app_name": {"type": "string"}
                 },
                 "required": ["app_name"]
             }
@@ -124,11 +127,11 @@ TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "play_music",
-            "description": "Find and play a music file on the computer.",
+            "description": "Play a music file by name.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "description": "Name or part of the music filename."}
+                    "name": {"type": "string"}
                 },
                 "required": ["name"]
             }
@@ -138,11 +141,11 @@ TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "open_website",
-            "description": "Open a website in the default browser.",
+            "description": "Open a website.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "site_name": {"type": "string", "description": "Site name like youtube, github, google, etc."}
+                    "site_name": {"type": "string"}
                 },
                 "required": ["site_name"]
             }
@@ -152,11 +155,14 @@ TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "get_current_time",
-            "description": "Get current system date and time.",
+            "description": "Get current date/time.",
             "parameters": {"type": "object", "properties": {}, "required": []}
         }
     }
 ]
+
+
+# ==================== TOOL IMPLEMENTATIONS ====================
 
 def run_shell_command(command, cwd=None):
     try:
@@ -166,48 +172,48 @@ def run_shell_command(command, cwd=None):
         )
         out = result.stdout.strip() if result.stdout.strip() else "[No output]"
         err = result.stderr.strip() if result.stderr.strip() else ""
-        return f"📟 Exit Code: {result.returncode}\n📝 Output:\n{out}" + (f"\n⚠️ Error:\n{err}" if err else "")
+        return f"Exit: {result.returncode}\n{out}" + (f"\nErr: {err}" if err else "")
     except subprocess.TimeoutExpired:
-        return "⏱️ Command timed out after 30 seconds"
+        return "Timed out after 30s"
     except Exception as e:
-        return f"❌ Exception: {e}"
+        return f"Error: {e}"
 
 
 def list_directory(path="."):
     try:
         p = Path(path).expanduser().resolve()
         if not p.exists():
-            return f"❌ Path not found: {path}"
+            return f"Not found: {path}"
         lines = []
         for item in sorted(p.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower())):
             icon = "📁" if item.is_dir() else "📄"
-            size = f" ({item.stat().st_size:,} bytes)" if item.is_file() else ""
+            size = f" ({item.stat().st_size:,}B)" if item.is_file() else ""
             lines.append(f"{icon} {item.name}{size}")
-        return "\n".join(lines) if lines else "📭 Directory is empty"
+        return "\n".join(lines) if lines else "Empty"
     except Exception as e:
-        return f"❌ Error: {e}"
+        return f"Error: {e}"
 
 
 def read_file_content(filepath, max_chars=8000):
     try:
         p = Path(filepath).expanduser()
         if not p.exists():
-            return f"❌ File not found: {filepath}"
+            return f"Not found: {filepath}"
         text = p.read_text(encoding='utf-8', errors='ignore')
         if len(text) > max_chars:
-            text = text[:max_chars] + f"\n\n... [truncated, total {len(text):,} chars]"
+            text = text[:max_chars] + f"\n... [truncated, total {len(text):,} chars]"
         return text
     except Exception as e:
-        return f"❌ Error: {e}"
+        return f"Error: {e}"
 
 
 def write_file_content(filepath, content):
     try:
         p = Path(filepath).expanduser()
         p.write_text(content, encoding='utf-8')
-        return f"✅ Written to: {p}"
+        return f"Saved: {p}"
     except Exception as e:
-        return f"❌ Error: {e}"
+        return f"Error: {e}"
 
 
 def get_system_info():
@@ -216,16 +222,14 @@ def get_system_info():
         cpu = psutil.cpu_percent(interval=1)
         mem = psutil.virtual_memory()
         disk = psutil.disk_usage('/')
-        info = (f"🖥️  System: {platform.system()} {platform.release()} ({platform.machine()})\n"
-                f"⚡ CPU: {cpu}% usage | Cores: {psutil.cpu_count()}\n"
-                f"🧠 RAM: {mem.percent}% used | {mem.used//1024//1024:,}MB / {mem.total//1024//1024:,}MB\n"
-                f"💾 Disk: {disk.percent}% used | {disk.used//1024//1024//1024:,}GB / {disk.total//1024//1024//1024:,}GB")
-        return info
+        return (f"OS: {platform.system()} {platform.release()}\n"
+                f"CPU: {cpu}% | Cores: {psutil.cpu_count()}\n"
+                f"RAM: {mem.percent}% | {mem.used//1024//1024:,}MB / {mem.total//1024//1024:,}MB\n"
+                f"Disk: {disk.percent}% | {disk.used//1024//1024//1024:,}GB / {disk.total//1024//1024//1024:,}GB")
     except ImportError:
-        return (f"🖥️  System: {platform.system()} {platform.release()}\n"
-                f"💡 Install psutil for full stats: pip install psutil")
+        return f"OS: {platform.system()} {platform.release()}\nInstall psutil for full stats"
     except Exception as e:
-        return f"❌ Error: {e}"
+        return f"Error: {e}"
 
 
 def take_screenshot(save_path="screenshot.png"):
@@ -234,51 +238,91 @@ def take_screenshot(save_path="screenshot.png"):
         img = pyautogui.screenshot()
         full = Path(save_path).expanduser().resolve()
         img.save(str(full))
-        return f"📸 Screenshot saved: {full}"
+        return f"Screenshot: {full}"
     except ImportError:
-        return "❌ pyautogui not installed. Run: pip install pyautogui"
+        return "Install pyautogui"
     except Exception as e:
-        return f"❌ Error: {e}"
+        return f"Error: {e}"
 
 
 def open_application(app_name):
-    system = platform.system()
     try:
-        if system == "Windows":
+        s = platform.system()
+        if s == "Windows":
             os.system(f'start "" "{app_name}"')
-        elif system == "Linux":
+        elif s == "Linux":
             subprocess.Popen([app_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        elif system == "Darwin":
+        elif s == "Darwin":
             subprocess.Popen(["open", "-a", app_name])
-        return f"🚀 Opened: {app_name}"
+        return f"Opened: {app_name}"
     except Exception as e:
-        return f"❌ Error: {e}"
+        return f"Error: {e}"
 
 
-# ==================== STREAMING + THINKING AI ====================
+def open_website(site_name):
+    site_map = {
+        "youtube": "https://youtube.com", "google": "https://google.com",
+        "github": "https://github.com", "stackoverflow": "https://stackoverflow.com",
+        "reddit": "https://reddit.com", "twitter": "https://twitter.com",
+        "facebook": "https://facebook.com", "instagram": "https://instagram.com",
+        "linkedin": "https://linkedin.com", "netflix": "https://netflix.com",
+        "amazon": "https://amazon.com", "spotify": "https://spotify.com",
+        "discord": "https://discord.com", "gmail": "https://mail.google.com",
+        "drive": "https://drive.google.com", "wikipedia": "https://en.wikipedia.org",
+    }
+    url = site_map.get(site_name.lower())
+    if url:
+        webbrowser.open(url)
+        return f"Opened {site_name}"
+    return f"Unknown site. Known: {', '.join(site_map.keys())}"
 
-def _stream_chat_completion(payload, on_token, on_thinking_chunk=None):
+
+def get_current_time():
+    now = datetime.datetime.now()
+    return now.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def execute_tool(name, arguments):
+    tools = {
+        "run_shell_command": run_shell_command,
+        "list_directory": list_directory,
+        "read_file_content": read_file_content,
+        "write_file_content": write_file_content,
+        "get_system_info": get_system_info,
+        "take_screenshot": take_screenshot,
+        "open_application": open_application,
+        "play_music": play_music,
+        "open_website": open_website,
+        "get_current_time": get_current_time,
+    }
+    func = tools.get(name)
+    if not func:
+        return f"Tool '{name}' not found."
+    try:
+        return func(**arguments)
+    except Exception as e:
+        return f"Error in {name}: {e}"
+
+
+# ==================== STREAMING + TOOLS ====================
+
+def _stream_chat_completion(payload, on_token):
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
     }
     response = requests.post(
         "https://openrouter.ai/api/v1/chat/completions",
-        headers=headers,
-        json=payload,
-        stream=True,
-        timeout=60
+        headers=headers, json=payload, stream=True, timeout=60
     )
-    
     if response.status_code == 401:
         raise PermissionError("Invalid API Key (401)")
     elif response.status_code != 200:
         raise ConnectionError(f"HTTP {response.status_code}: {response.text[:200]}")
-    
+
     full_text = ""
-    full_thinking = ""
-    in_thinking = False
-    
+    tool_calls_buffer = []
+
     for line in response.iter_lines():
         if not line:
             continue
@@ -291,29 +335,181 @@ def _stream_chat_completion(payload, on_token, on_thinking_chunk=None):
         try:
             chunk = json.loads(data_str)
             delta = chunk.get('choices', [{}])[0].get('delta', {})
-            
-            # Thinking / reasoning content (DeepSeek R1 style)
-            reasoning = delta.get('reasoning') or delta.get('reasoning_content')
-            if reasoning:
-                full_thinking += reasoning
-                if on_thinking_chunk:
-                    on_thinking_chunk(reasoning, full_thinking)
-                in_thinking = True
+
+            # Tool calls
+            tc_delta = delta.get('tool_calls')
+            if tc_delta:
+                for tc in tc_delta:
+                    idx = tc.get('index', 0)
+                    while len(tool_calls_buffer) <= idx:
+                        tool_calls_buffer.append({"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
+                    if tc.get('id'):
+                        tool_calls_buffer[idx]['id'] += tc['id']
+                    if tc.get('type'):
+                        tool_calls_buffer[idx]['type'] = tc['type']
+                    func = tc.get('function', {})
+                    if func.get('name'):
+                        tool_calls_buffer[idx]['function']['name'] += func['name']
+                    if func.get('arguments'):
+                        tool_calls_buffer[idx]['function']['arguments'] += func['arguments']
                 continue
-            
+
             # Main content
             content = delta.get('content', '')
             if content:
-                if in_thinking and on_thinking_chunk:
-                    on_thinking_chunk(None, full_thinking) 
-                in_thinking = False
                 full_text += content
                 on_token(content, full_text)
-                
+
         except json.JSONDecodeError:
             continue
-    
-    return full_text, full_thinking
+
+    return full_text, tool_calls_buffer
+
+
+def _run_conversation_with_tools(messages, model="google/gemini-2.0-flash-exp:free",
+                                  on_token=None, max_iterations=5):
+    iteration = 0
+    final_content = ""
+
+    while iteration < max_iterations:
+        iteration += 1
+
+        payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": 0.7,
+            "stream": True,
+            "tools": TOOLS_SCHEMA,
+            "tool_choice": "auto",
+        }
+
+        content, tool_calls = _stream_chat_completion(
+            payload, on_token or (lambda t, f: None)
+        )
+        final_content = content
+
+        if not tool_calls:
+            break
+
+        messages.append({
+            "role": "assistant",
+            "content": content or "",
+            "tool_calls": tool_calls
+        })
+
+        for tc in tool_calls:
+            name = tc['function']['name']
+            args_str = tc['function']['arguments']
+            try:
+                args = json.loads(args_str) if args_str else {}
+            except json.JSONDecodeError:
+                args = {}
+
+            print(f"\n\033[1;33m🔧 {name}({json.dumps(args, ensure_ascii=False)[:80]})\033[0m")
+            result = execute_tool(name, args)
+            print(f"\033[90m📤 {str(result)[:500]}{'...' if len(str(result))>500 else ''}\033[0m\n")
+
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tc['id'],
+                "name": name,
+                "content": str(result)
+            })
+
+    return final_content
+
+
+# ==================== SPINNER ====================
+
+def _thinking_spinner():
+    thinking_done = threading.Event()
+
+    def worker():
+        chars = itertools.cycle(['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'])
+        while not thinking_done.is_set():
+            sys.stdout.write(f"\r\033[90m🧠 Thinking {next(chars)}\033[0m")
+            sys.stdout.flush()
+            _time.sleep(0.06)
+        sys.stdout.write("\r" + " "*30 + "\r")
+        sys.stdout.flush()
+
+    t = threading.Thread(target=worker)
+    t.start()
+    return thinking_done, t
+
+
+# ==================== AI FUNCTIONS ====================
+
+def ai_speak(self):
+    done, t = _thinking_spinner()
+    try:
+        def on_token(token, full):
+            print(token, end='', flush=True)
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You ARE Zeus Agent — created by Taha-Azadi. "
+                    "You have FULL ACCESS to the user's computer via tools. "
+                    "Use tools when needed. Respond as Zeus Agent with Markdown."
+                ),
+            },
+            {"role": "user", "content": f"My name is {self.name}.\n\n{self.text}"},
+        ]
+
+        print(f"\n\033[1;36m{'═'*50}\033[0m")
+        print(f"\033[1;36m  ⚡ Zeus Agent — Live Stream\033[0m")
+        print(f"\033[1;36m{'═'*50}\033[0m\n")
+
+        full_content = _run_conversation_with_tools(messages, on_token=on_token)
+
+        print("\n")
+
+        if full_content:
+            say(full_content)
+
+    except Exception as e:
+        _print_error(f"Error: {e}")
+    finally:
+        done.set()
+        t.join()
+
+
+def ai_type(self):
+    done, t = _thinking_spinner()
+    try:
+        def on_token(token, full):
+            print(token, end='', flush=True)
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You ARE Zeus Agent — created by Taha-Azadi. "
+                    "You have FULL ACCESS to the user's computer via tools. "
+                    "Think step by step. Use Markdown."
+                ),
+            },
+            {"role": "user", "content": f"My name is {self.name}.\n\n{self.text}"},
+        ]
+
+        print(f"\n\033[1;36m{'═'*50}\033[0m")
+        print(f"\033[1;36m  ⚡ Zeus Agent — Live Stream\033[0m")
+        print(f"\033[1;36m{'═'*50}\033[0m\n")
+
+        full_content = _run_conversation_with_tools(messages, on_token=on_token)
+
+        print("\n")
+
+    except Exception as e:
+        _print_error(f"Error: {e}")
+    finally:
+        done.set()
+        t.join()
+
+
+# ==================== PRINT HELPERS ====================
 
 def _print_md(text: str, title: str = "Zeus Agent"):
     if _HAS_RICH:
@@ -340,8 +536,18 @@ def _print_warn(msg: str):
     else:
         print(f"⚠️ {msg}")
 
+
+# ==================== SETUP ====================
+
 with open("ai.txt", "r") as r:
     re = r.read()
+
+API_KEY = re
+USER_PATH = os.path.expanduser("~")
+
+MUSIC_EXTENSIONS = (".mp3", ".wav", ".m4a", ".flac", ".ogg")
+
+
 def clear():
     os.system("cls" if os.name == "nt" else "clear")
     print(f"""
@@ -349,21 +555,6 @@ def clear():
 ╶─╮   ╭─╴   ╷ ╷   ╭─╮      ╭─╮   ╭─╴   ╭─╴   ╭╮╷   ╶┬╴
 ╭─╯   ├╴    │ │   ╰─╮      ├─┤   │╶╮   ├╴    │╰┤    │
 ╰─╴   ╰─╴   ╰─╯   ╰─╯      ╵ ╵   ╰─╯   ╰─╴   ╵ ╵    ╵
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣠⠀
-⠀⠀⠈⠲⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣴⣶⣿⣿⠃⠀
-⠀⠀⠀⠀⠈⠻⣷⣦⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣾⡿⠋⣨⣿⠏⠀⠀
-⠀⠀⠀⠀⠀⠀⠈⠛⢿⣿⣦⣀⠀⠀⠀⠀⠀⠀⠀⣠⣾⡿⠋⣠⣾⡿⠋⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⣿⣿⣿⡦⠀⠀⠀⣠⣾⡿⠋⣠⣾⡿⠋⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⣾⣿⣿⣯⡀⠀⣠⣾⡿⠋⣠⣾⡿⠋⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⣿⣿⣿⣾⣿⠋⣠⣾⡿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣨⣿⣿⣿⣿⣿⣿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⣠⣄⠀⠀⠀⣠⣾⡿⠋⣨⣿⣿⣿⣿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠻⣿⣧⡀⠸⡿⠋⣠⣾⡿⠋⠀⠙⢿⣿⣿⣷⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠈⠻⣿⣦⡀⠺⠿⠋⠀⠀⠀⢠⣾⣿⣿⣅⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⣠⣦⡈⠻⣿⣦⣀⠀⠀⠀⠀⠀⠈⠙⢿⣿⣷⣄⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⣠⣾⡿⠋⠀⠀⠈⠻⣿⡷⠀⠀⠀⠀⠀⠀⠀⠈⠙⠿⣷⣄⡀⠀⠀⠀⠀
-⠀⠀⣾⡿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠻⢦⡀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠂⠀
                            ╔══════════════════════════════════╗
 ╔══════════════════════════╝══════════════════════════════════╝══════════════════════════╗
 ║                         for clear Enter clear or say clear                             ║
@@ -372,10 +563,6 @@ def clear():
 ╚════════════════════════════════════════════════════════════════════════════════════════╝
 {Fore.RESET}
 """)
-API_KEY = re
-USER_PATH = os.path.expanduser("~")
-
-MUSIC_EXTENSIONS = (".mp3", ".wav", ".m4a", ".flac", ".ogg")
 
 
 def get_all_music():
@@ -404,14 +591,12 @@ def find_music(name):
 
     name = name.lower()
 
-    # First, search directly for part of the name
     for song in songs:
         filename = os.path.basename(song).lower()
 
         if name in filename:
             return song
 
-    # if difflib not found
     music_names = [os.path.splitext(os.path.basename(x))[0].lower() for x in songs]
 
     result = difflib.get_close_matches(name, music_names, n=1, cutoff=0.25)
@@ -653,155 +838,8 @@ sites = [
     ["boundary", "https://www.boundaryproject.io"],
 ]
 
-# ==================== AI FUNCTIONS ====================
 
-def ai_speak(self):
-    try:
-        thinking_buffer = [""]
-        thinking_done = threading.Event()
-        
-        def spinner_worker():
-            chars = itertools.cycle(['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'])
-            while not thinking_done.is_set():
-                sys.stdout.write(f"\r\033[90m🧠 Thinking {next(chars)}\033[0m")
-                sys.stdout.flush()
-                time.sleep(0.08)
-            sys.stdout.write("\r" + " "*30 + "\r")
-            sys.stdout.flush()
-            if thinking_buffer[0]:
-                print(f"\033[90m💭 Thinking:\n{thinking_buffer[0][:500]}{'...' if len(thinking_buffer[0])>500 else ''}\033[0m\n")
-        
-        def on_think(chunk, full):
-            if chunk:
-                thinking_buffer[0] += chunk
-        
-        def on_token(token, full):
-            print(token, end='', flush=True)
-        
-        t = threading.Thread(target=spinner_worker)
-        t.start()
-        
-        payload = {
-            "model": "deepseek/deepseek-r1:free",  
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "You ARE Zeus Agent — an AI assistant created by Taha-Azadi. "
-                        "You have FULL ACCESS to the user's computer. You can run commands, "
-                        "manage files, open apps, take screenshots, and control the system. "
-                        "Always respond as Zeus Agent using Markdown formatting."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": (
-                        f"My name is {self.name}.\n"
-                        f"You can use these tools if needed:\n"
-                        f"- run_shell_command(cmd)\n"
-                        f"- list_directory(path)\n"
-                        f"- read_file_content(path)\n"
-                        f"- write_file_content(path, content)\n"
-                        f"- get_system_info()\n"
-                        f"- take_screenshot(path)\n"
-                        f"- open_application(name)\n\n"
-                        f"User request:\n{self.text}"
-                    ),
-                },
-            ],
-            "temperature": 0.7,
-            "stream": True,
-            "include_reasoning": True,
-        }
-        
-        print(f"\n\033[1;36m{'═'*50}\033[0m")
-        print(f"\033[1;36m  ⚡ Zeus Agent — Live Stream\033[0m")
-        print(f"\033[1;36m{'═'*50}\033[0m\n")
-        
-        full_content, _ = _stream_chat_completion(payload, on_token, on_think)
-        
-        thinking_done.set()
-        t.join()
-        print("\n")  # newline after stream
-        
-        if full_content:
-            say(full_content)
-        
-    except PermissionError as e:
-        _print_error(str(e))
-    except ConnectionError as e:
-        _print_error(str(e))
-    except requests.exceptions.RequestException as e:
-        _print_error(f"Network Error: {e}")
-    except Exception as e:
-        _print_error(f"Error: {e}")
-
-
-def ai_type(self):
-    try:
-        thinking_buffer = [""]
-        thinking_done = threading.Event()
-        
-        def spinner_worker():
-            chars = itertools.cycle(['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'])
-            while not thinking_done.is_set():
-                sys.stdout.write(f"\r\033[90m🧠 Thinking {next(chars)}\033[0m")
-                sys.stdout.flush()
-                time.sleep(0.08)
-            sys.stdout.write("\r" + " "*30 + "\r")
-            sys.stdout.flush()
-            if thinking_buffer[0]:
-                print(f"\033[90m💭 Thinking:\n{thinking_buffer[0][:500]}{'...' if len(thinking_buffer[0])>500 else ''}\033[0m\n")
-        
-        def on_think(chunk, full):
-            if chunk:
-                thinking_buffer[0] += chunk
-        
-        def on_token(token, full):
-            print(token, end='', flush=True)
-        
-        t = threading.Thread(target=spinner_worker)
-        t.start()
-        
-        payload = {
-            "model": "meta-llama/llama-3.1-70b-instruct:free",
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "You ARE Zeus Agent — an AI assistant created by Taha-Azadi. "
-                        "You have FULL ACCESS to the user's computer. "
-                        "Think step by step before acting. Use Markdown."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": (
-                        f"My name is {self.name}.\n"
-                        f"Available tools: run_shell_command, list_directory, read_file_content, "
-                        f"write_file_content, get_system_info, take_screenshot, open_application.\n\n"
-                        f"{self.text}"
-                    ),
-                },
-            ],
-            "temperature": 0.7,
-            "stream": True,
-            "include_reasoning": True,
-        }
-        
-        print(f"\n\033[1;36m{'═'*50}\033[0m")
-        print(f"\033[1;36m  ⚡ Zeus Agent — Live Stream\033[0m")
-        print(f"\033[1;36m{'═'*50}\033[0m\n")
-        
-        full_content, _ = _stream_chat_completion(payload, on_token, on_think)
-        
-        thinking_done.set()
-        t.join()
-        print("\n")
-        
-    except Exception as e:
-        _print_error(f"Error: {e}")
-
+# ==================== LEGACY FUNCTIONS ====================
 
 def open_any(self):
     for site in sites:
@@ -810,32 +848,24 @@ def open_any(self):
             self.say(f"I opened {site[0]} for you.")
             print(f"Zeus: I opened {site[0]} for you.")
     if "open" in self.text.lower() and "music" in self.text.lower() or "song" in self.text.lower():
-
         music_name = self.text.lower().replace("open", "").replace("music", "").strip()
-
         if play_music(music_name):
             self.say(f"I opened {music_name} for you.")
             print(f"Zeus: Playing {music_name}")
-
         else:
             self.say("I couldn't find that music.")
             print("Zeus: Music not found")
     if "open camera" in self.text.lower() or "open facetime" in self.text.lower():
-
         system = platform.system()
-
         if system == "Windows":
             os.system("start microsoft.windows.camera:")
-
         elif system == "Linux":
             subprocess.Popen(["cheese"])
-
         elif system == "Darwin":
             if "facetime" in self.text.lower():
                 subprocess.Popen(["open", "-a", "FaceTime"])
             else:
                 subprocess.Popen(["open", "-a", "Photo Booth"])
-
         self.say("I open camera for you")
         print("Zeus I open camera for you")
 
@@ -846,24 +876,17 @@ def open_any_type(self):
             webbrowser.open(f"{site[1]}")
             print(f"Zeus: I opened {site[0]} for you.")
     if (("open" in self.text.lower() and "music" in self.text.lower()) or ("open" in self.text.lower() and "song" in self.text.lower())):
-
         music_name = self.text.lower().replace("open", "").replace("music", "").replace("song", "").strip()
-
         if play_music(music_name):
             print(f"Zeus: Playing {music_name}")
-
         else:
             print("Zeus: Music not found")
     if "open camera" in self.text.lower() or "open facetime" in self.text.lower():
-
         system = platform.system()
-
         if system == "Windows":
             os.system("start microsoft.windows.camera:")
-
         elif system == "Linux":
             subprocess.Popen(["cheese"])
-
         elif system == "Darwin":
             if "facetime" in self.text.lower():
                 subprocess.Popen(["open", "-a", "FaceTime"])
@@ -890,30 +913,17 @@ def time_type(self):
 def generate_and_bye(self):
     name = self.name
     global bye
-    self.bye = rchoice(
-        [
-            f"GoodBye {name}",
-            f"bye {name}",
-            f"Goodbye {name}, see you later",
-            f"See you soon {name}",
-            f"Bye bye {name}",
-            f"Take care {name}",
-            f"Have a nice day {name}",
-            f"See you again {name}",
-            f"Until next time {name}",
-            f"Good night {name}",
-            f"Farewell {name}",
-            f"Catch you later {name}",
-            f"Talk to you later {name}",
-            f"Have a good one {name}",
-            f"Bye for now {name}",
-            f"See you around {name}",
-            f"Stay safe {name}",
-            f"Take it easy {name}",
-            f"Thanks for talking {name}",
-            f"Closing session {name}",
-        ]
-    )
+    self.bye = rchoice([
+        f"GoodBye {name}", f"bye {name}", f"Goodbye {name}, see you later",
+        f"See you soon {name}", f"Bye bye {name}", f"Take care {name}",
+        f"Have a nice day {name}", f"See you again {name}",
+        f"Until next time {name}", f"Good night {name}", f"Farewell {name}",
+        f"Catch you later {name}", f"Talk to you later {name}",
+        f"Have a good one {name}", f"Bye for now {name}",
+        f"See you around {name}", f"Stay safe {name}",
+        f"Take it easy {name}", f"Thanks for talking {name}",
+        f"Closing session {name}",
+    ])
     self.say(f"{self.bye}")
     print(f"Zeus: {self.bye}")
 
@@ -921,60 +931,34 @@ def generate_and_bye(self):
 def generate_and_bye_type(self):
     name = self.name
     global bye
-    self.bye = rchoice(
-        [
-            f"GoodBye {name}",
-            f"bye {name}",
-            f"Goodbye {name}, see you later",
-            f"See you soon {name}",
-            f"Bye bye {name}",
-            f"Take care {name}",
-            f"Have a nice day {name}",
-            f"See you again {name}",
-            f"Until next time {name}",
-            f"Good night {name}",
-            f"Farewell {name}",
-            f"Catch you later {name}",
-            f"Talk to you later {name}",
-            f"Have a good one {name}",
-            f"Bye for now {name}",
-            f"See you around {name}",
-            f"Stay safe {name}",
-            f"Take it easy {name}",
-            f"Thanks for talking {name}",
-            f"Closing session {name}",
-        ]
-    )
+    self.bye = rchoice([
+        f"GoodBye {name}", f"bye {name}", f"Goodbye {name}, see you later",
+        f"See you soon {name}", f"Bye bye {name}", f"Take care {name}",
+        f"Have a nice day {name}", f"See you again {name}",
+        f"Until next time {name}", f"Good night {name}", f"Farewell {name}",
+        f"Catch you later {name}", f"Talk to you later {name}",
+        f"Have a good one {name}", f"Bye for now {name}",
+        f"See you around {name}", f"Stay safe {name}",
+        f"Take it easy {name}", f"Thanks for talking {name}",
+        f"Closing session {name}",
+    ])
     print(f"Zeus: {self.bye}")
 
 
 def generate_and_hello(self):
     name = self.name
     global hello
-    self.hello = rchoice(
-        [
-            f"Hello {name}",
-            f"Hi {name}",
-            f"Hey {name}",
-            f"Hello there {name}",
-            f"Hi there {name}",
-            f"Welcome {name}",
-            f"Welcome back {name}",
-            f"Nice to see you {name}",
-            f"Good to see you {name}",
-            f"Hey there {name}",
-            f"Greetings {name}",
-            f"Howdy {name}",
-            f"What's up {name}",
-            f"How are you {name}",
-            f"Hope you're doing well {name}",
-            f"Nice to meet you {name}",
-            f"Great to see you {name}",
-            f"Hello again {name}",
-            f"Hey, welcome {name}",
-            f"Ready to help you {name}",
-        ]
-    )
+    self.hello = rchoice([
+        f"Hello {name}", f"Hi {name}", f"Hey {name}",
+        f"Hello there {name}", f"Hi there {name}", f"Welcome {name}",
+        f"Welcome back {name}", f"Nice to see you {name}",
+        f"Good to see you {name}", f"Hey there {name}",
+        f"Greetings {name}", f"Howdy {name}", f"What's up {name}",
+        f"How are you {name}", f"Hope you're doing well {name}",
+        f"Nice to meet you {name}", f"Great to see you {name}",
+        f"Hello again {name}", f"Hey, welcome {name}",
+        f"Ready to help you {name}",
+    ])
     self.say(f"{self.hello}")
     print(f"Zeus: {self.hello}")
 
@@ -982,30 +966,17 @@ def generate_and_hello(self):
 def generate_and_hello_type(self):
     name = self.name
     global hello
-    self.hello = rchoice(
-        [
-            f"Hello {name}",
-            f"Hi {name}",
-            f"Hey {name}",
-            f"Hello there {name}",
-            f"Hi there {name}",
-            f"Welcome {name}",
-            f"Welcome back {name}",
-            f"Nice to see you {name}",
-            f"Good to see you {name}",
-            f"Hey there {name}",
-            f"Greetings {name}",
-            f"Howdy {name}",
-            f"What's up {name}",
-            f"How are you {name}",
-            f"Hope you're doing well {name}",
-            f"Nice to meet you {name}",
-            f"Great to see you {name}",
-            f"Hello again {name}",
-            f"Hey, welcome {name}",
-            f"Ready to help you {name}",
-        ]
-    )
+    self.hello = rchoice([
+        f"Hello {name}", f"Hi {name}", f"Hey {name}",
+        f"Hello there {name}", f"Hi there {name}", f"Welcome {name}",
+        f"Welcome back {name}", f"Nice to see you {name}",
+        f"Good to see you {name}", f"Hey there {name}",
+        f"Greetings {name}", f"Howdy {name}", f"What's up {name}",
+        f"How are you {name}", f"Hope you're doing well {name}",
+        f"Nice to meet you {name}", f"Great to see you {name}",
+        f"Hello again {name}", f"Hey, welcome {name}",
+        f"Ready to help you {name}",
+    ])
     print(f"Zeus: {self.hello}")
 
 
@@ -1016,7 +987,6 @@ def hey_Zeus(self):
 
 def hey_Zeus_type(self):
     print(f"Zeus: what you need {self.name}")
-
 
 
 def takeCommand(self):
