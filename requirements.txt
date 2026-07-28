@@ -5,3 +5,5 @@ pyttsx3
 pywin32
 rich
 colorama
+pyautogui 
+psutil
