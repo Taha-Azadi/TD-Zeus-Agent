@@ -16,7 +16,6 @@ class Type:
         print("Zeus: hello I'm Zeus Agent")
 
         while True:
-
             self.text = input("ask Anything: ")
 
             if self.text != None:
@@ -28,7 +27,6 @@ class Type:
                     break
                 if "the time" in self.text.lower() or "time is" in self.text.lower():
                     time_type(self)
-
                 elif "hello" in self.text.lower() or "hi " in self.text.lower():
                     generate_and_hello_type(self)
                 elif "clear" in self.text.lower() or "cls " in self.text.lower():
