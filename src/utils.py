@@ -20,7 +20,6 @@ except ImportError:
 
 
 def _print_md(text: str, title: str = "Zeus Agent"):
-    """چاپ Markdown — اگه rich نصب باشه رندر شده، وگرنه ساده"""
     if _HAS_RICH:
         md = Markdown(text)
         console.print(Panel(md, title=f"[bold cyan]{title}[/]", border_style="cyan"))
