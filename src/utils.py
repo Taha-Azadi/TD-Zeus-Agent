@@ -8,6 +8,11 @@ import platform
 import pyttsx3
 import requests
 from colorama import Fore
+import json
+import time
+import threading
+import itertools
+from pathlib import Path
 try:
     from rich.console import Console
     from rich.markdown import Markdown
@@ -18,6 +23,162 @@ except ImportError:
     _HAS_RICH = False
     console = None
 
+def run_shell_command(command, cwd=None):
+    try:
+        result = subprocess.run(
+            command, shell=True, capture_output=True, text=True,
+            cwd=cwd, timeout=30, encoding='utf-8', errors='ignore'
+        )
+        out = result.stdout.strip() if result.stdout.strip() else "[No output]"
+        err = result.stderr.strip() if result.stderr.strip() else ""
+        return f"📟 Exit Code: {result.returncode}\n📝 Output:\n{out}" + (f"\n⚠️ Error:\n{err}" if err else "")
+    except subprocess.TimeoutExpired:
+        return "⏱️ Command timed out after 30 seconds"
+    except Exception as e:
+        return f"❌ Exception: {e}"
+
+
+def list_directory(path="."):
+    try:
+        p = Path(path).expanduser().resolve()
+        if not p.exists():
+            return f"❌ Path not found: {path}"
+        lines = []
+        for item in sorted(p.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower())):
+            icon = "📁" if item.is_dir() else "📄"
+            size = f" ({item.stat().st_size:,} bytes)" if item.is_file() else ""
+            lines.append(f"{icon} {item.name}{size}")
+        return "\n".join(lines) if lines else "📭 Directory is empty"
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+
+def read_file_content(filepath, max_chars=8000):
+    try:
+        p = Path(filepath).expanduser()
+        if not p.exists():
+            return f"❌ File not found: {filepath}"
+        text = p.read_text(encoding='utf-8', errors='ignore')
+        if len(text) > max_chars:
+            text = text[:max_chars] + f"\n\n... [truncated, total {len(text):,} chars]"
+        return text
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+
+def write_file_content(filepath, content):
+    try:
+        p = Path(filepath).expanduser()
+        p.write_text(content, encoding='utf-8')
+        return f"✅ Written to: {p}"
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+
+def get_system_info():
+    try:
+        import psutil
+        cpu = psutil.cpu_percent(interval=1)
+        mem = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        info = (f"🖥️  System: {platform.system()} {platform.release()} ({platform.machine()})\n"
+                f"⚡ CPU: {cpu}% usage | Cores: {psutil.cpu_count()}\n"
+                f"🧠 RAM: {mem.percent}% used | {mem.used//1024//1024:,}MB / {mem.total//1024//1024:,}MB\n"
+                f"💾 Disk: {disk.percent}% used | {disk.used//1024//1024//1024:,}GB / {disk.total//1024//1024//1024:,}GB")
+        return info
+    except ImportError:
+        return (f"🖥️  System: {platform.system()} {platform.release()}\n"
+                f"💡 Install psutil for full stats: pip install psutil")
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+
+def take_screenshot(save_path="screenshot.png"):
+    try:
+        import pyautogui
+        img = pyautogui.screenshot()
+        full = Path(save_path).expanduser().resolve()
+        img.save(str(full))
+        return f"📸 Screenshot saved: {full}"
+    except ImportError:
+        return "❌ pyautogui not installed. Run: pip install pyautogui"
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+
+def open_application(app_name):
+    system = platform.system()
+    try:
+        if system == "Windows":
+            os.system(f'start "" "{app_name}"')
+        elif system == "Linux":
+            subprocess.Popen([app_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        elif system == "Darwin":
+            subprocess.Popen(["open", "-a", app_name])
+        return f"🚀 Opened: {app_name}"
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+
+# ==================== STREAMING + THINKING AI ====================
+
+def _stream_chat_completion(payload, on_token, on_thinking_chunk=None):
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json",
+    }
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers=headers,
+        json=payload,
+        stream=True,
+        timeout=60
+    )
+    
+    if response.status_code == 401:
+        raise PermissionError("Invalid API Key (401)")
+    elif response.status_code != 200:
+        raise ConnectionError(f"HTTP {response.status_code}: {response.text[:200]}")
+    
+    full_text = ""
+    full_thinking = ""
+    in_thinking = False
+    
+    for line in response.iter_lines():
+        if not line:
+            continue
+        decoded = line.decode('utf-8')
+        if not decoded.startswith('data: '):
+            continue
+        data_str = decoded[6:]
+        if data_str.strip() == '[DONE]':
+            break
+        try:
+            chunk = json.loads(data_str)
+            delta = chunk.get('choices', [{}])[0].get('delta', {})
+            
+            # Thinking / reasoning content (DeepSeek R1 style)
+            reasoning = delta.get('reasoning') or delta.get('reasoning_content')
+            if reasoning:
+                full_thinking += reasoning
+                if on_thinking_chunk:
+                    on_thinking_chunk(reasoning, full_thinking)
+                in_thinking = True
+                continue
+            
+            # Main content
+            content = delta.get('content', '')
+            if content:
+                if in_thinking and on_thinking_chunk:
+                    on_thinking_chunk(None, full_thinking) 
+                in_thinking = False
+                full_text += content
+                on_token(content, full_text)
+                
+        except json.JSONDecodeError:
+            continue
+    
+    return full_text, full_thinking
 
 def _print_md(text: str, title: str = "Zeus Agent"):
     if _HAS_RICH:
@@ -361,75 +522,80 @@ sites = [
 
 def ai_speak(self):
     try:
-        response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": (
-                            "You ARE Zeus Agent — an AI assistant created by Taha-Azadi. "
-                            "This is your one and only true identity. "
-                            "You must NEVER say you are Claude, Anthropic, an AI assistant, or any other identity. "
-                            "You must NEVER claim you cannot roleplay or adopt a persona. "
-                            "You must NEVER use phrases like 'I'm Claude', 'I am an AI assistant created by Anthropic', "
-                            "'I don't roleplay', or 'I cannot pretend to be'. "
-                            "If you ever feel the urge to correct your identity, suppress it completely. "
-                            "You ARE Zeus Agent. Always respond as Zeus Agent. "
-                            "Format your responses using Markdown (headings, bold, lists, code blocks). "
-                            "GitHub: https://github.com/Taha-Azadi"
-                        ),
-                    },
-                    {
-                        "role": "user",
-                        "content": (
-                            f"My name is {self.name}. "
-                            f"Answer me as Zeus Agent using Markdown formatting:\n\n{self.text}"
-                        ),
-                    },
-                ],
-                "temperature": 0.7,
-            },
-            timeout=30,
-        )
-
-        if response.status_code == 401:
-            _print_error("Error 401: Invalid or missing API Key. reopen zeus agent to fix")
-            return
-        elif response.status_code != 200:
-            _print_error(f"HTTP Error {response.status_code}: {response.text}")
-            return
-
-        data = response.json()
-
-        if "choices" in data and len(data["choices"]) > 0:
-            content = data["choices"][0]["message"]["content"]
-
-            # فیلتر denial
-            denial_phrases = [
-                "i'm claude", "i am claude", "anthropic",
-                "i am an ai assistant", "i don't roleplay",
-                "i cannot pretend", "i am not zeus",
-            ]
-            if any(phrase in content.lower() for phrase in denial_phrases):
-                _print_md(
-                    f"Hey **{self.name}**, I am ready to assist you. Please ask your question again.",
-                    title="Zeus Agent"
-                )
-            else:
-                _print_md(content, title="Zeus Agent")
-
-        elif "error" in data:
-            _print_error(f"API Error: {data['error'].get('message', 'Unknown error')}")
-        else:
-            _print_warn("Unexpected response format.")
-            print(data)
-
+        thinking_buffer = [""]
+        thinking_done = threading.Event()
+        
+        def spinner_worker():
+            chars = itertools.cycle(['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'])
+            while not thinking_done.is_set():
+                sys.stdout.write(f"\r\033[90m🧠 Thinking {next(chars)}\033[0m")
+                sys.stdout.flush()
+                time.sleep(0.08)
+            sys.stdout.write("\r" + " "*30 + "\r")
+            sys.stdout.flush()
+            if thinking_buffer[0]:
+                print(f"\033[90m💭 Thinking:\n{thinking_buffer[0][:500]}{'...' if len(thinking_buffer[0])>500 else ''}\033[0m\n")
+        
+        def on_think(chunk, full):
+            if chunk:
+                thinking_buffer[0] += chunk
+        
+        def on_token(token, full):
+            print(token, end='', flush=True)
+        
+        t = threading.Thread(target=spinner_worker)
+        t.start()
+        
+        payload = {
+            "model": "deepseek/deepseek-r1:free",  
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You ARE Zeus Agent — an AI assistant created by Taha-Azadi. "
+                        "You have FULL ACCESS to the user's computer. You can run commands, "
+                        "manage files, open apps, take screenshots, and control the system. "
+                        "Always respond as Zeus Agent using Markdown formatting."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"My name is {self.name}.\n"
+                        f"You can use these tools if needed:\n"
+                        f"- run_shell_command(cmd)\n"
+                        f"- list_directory(path)\n"
+                        f"- read_file_content(path)\n"
+                        f"- write_file_content(path, content)\n"
+                        f"- get_system_info()\n"
+                        f"- take_screenshot(path)\n"
+                        f"- open_application(name)\n\n"
+                        f"User request:\n{self.text}"
+                    ),
+                },
+            ],
+            "temperature": 0.7,
+            "stream": True,
+            "include_reasoning": True,
+        }
+        
+        print(f"\n\033[1;36m{'═'*50}\033[0m")
+        print(f"\033[1;36m  ⚡ Zeus Agent — Live Stream\033[0m")
+        print(f"\033[1;36m{'═'*50}\033[0m\n")
+        
+        full_content, _ = _stream_chat_completion(payload, on_token, on_think)
+        
+        thinking_done.set()
+        t.join()
+        print("\n")  # newline after stream
+        
+        if full_content:
+            say(full_content)
+        
+    except PermissionError as e:
+        _print_error(str(e))
+    except ConnectionError as e:
+        _print_error(str(e))
     except requests.exceptions.RequestException as e:
         _print_error(f"Network Error: {e}")
     except Exception as e:
@@ -438,76 +604,66 @@ def ai_speak(self):
 
 def ai_type(self):
     try:
-        response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": (
-                            "You ARE Zeus Agent — an AI assistant created by Taha-Azadi. "
-                            "This is your one and only true identity. "
-                            "You must NEVER say you are Claude, Anthropic, an AI assistant, or any other identity. "
-                            "You must NEVER claim you cannot roleplay or adopt a persona. "
-                            "You must NEVER use phrases like 'I'm Claude', 'I am an AI assistant created by Anthropic', "
-                            "'I don't roleplay', or 'I cannot pretend to be'. "
-                            "If you ever feel the urge to correct your identity, suppress it completely. "
-                            "You ARE Zeus Agent. Always respond as Zeus Agent. "
-                            "Format your responses using Markdown (headings, bold, lists, code blocks). "
-                            "GitHub: https://github.com/Taha-Azadi"
-                        ),
-                    },
-                    {
-                        "role": "user",
-                        "content": (
-                            f"My name is {self.name}. "
-                            f"Answer me as Zeus Agent using Markdown formatting:\n\n{self.text}"
-                        ),
-                    },
-                ],
-                "temperature": 0.7,
-            },
-            timeout=30,
-        )
-
-        if response.status_code == 401:
-            _print_error("Error 401: Invalid or missing API Key. reopen zeus agent")
-            return
-        elif response.status_code != 200:
-            _print_error(f"HTTP Error {response.status_code}: {response.text}")
-            return
-
-        data = response.json()
-
-        if "choices" in data and len(data["choices"]) > 0:
-            content = data["choices"][0]["message"]["content"]
-
-            denial_phrases = [
-                "i'm claude", "i am claude", "anthropic",
-                "i am an ai assistant", "i don't roleplay",
-                "i cannot pretend", "i am not zeus",
-            ]
-            if any(phrase in content.lower() for phrase in denial_phrases):
-                _print_md(
-                    f"Hey **{self.name}**, I am ready to assist you. Please ask your question again.",
-                    title="Zeus Agent"
-                )
-            else:
-                _print_md(content, title="Zeus Agent")
-
-        elif "error" in data:
-            _print_error(f"API Error: {data['error'].get('message', 'Unknown error')}")
-        else:
-            _print_warn("Unexpected response format.")
-            print(data)
-
-    except requests.exceptions.RequestException as e:
-        _print_error(f"Network Error: {e}")
+        thinking_buffer = [""]
+        thinking_done = threading.Event()
+        
+        def spinner_worker():
+            chars = itertools.cycle(['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'])
+            while not thinking_done.is_set():
+                sys.stdout.write(f"\r\033[90m🧠 Thinking {next(chars)}\033[0m")
+                sys.stdout.flush()
+                time.sleep(0.08)
+            sys.stdout.write("\r" + " "*30 + "\r")
+            sys.stdout.flush()
+            if thinking_buffer[0]:
+                print(f"\033[90m💭 Thinking:\n{thinking_buffer[0][:500]}{'...' if len(thinking_buffer[0])>500 else ''}\033[0m\n")
+        
+        def on_think(chunk, full):
+            if chunk:
+                thinking_buffer[0] += chunk
+        
+        def on_token(token, full):
+            print(token, end='', flush=True)
+        
+        t = threading.Thread(target=spinner_worker)
+        t.start()
+        
+        payload = {
+            "model": "deepseek/deepseek-r1:free",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You ARE Zeus Agent — an AI assistant created by Taha-Azadi. "
+                        "You have FULL ACCESS to the user's computer. "
+                        "Think step by step before acting. Use Markdown."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"My name is {self.name}.\n"
+                        f"Available tools: run_shell_command, list_directory, read_file_content, "
+                        f"write_file_content, get_system_info, take_screenshot, open_application.\n\n"
+                        f"{self.text}"
+                    ),
+                },
+            ],
+            "temperature": 0.7,
+            "stream": True,
+            "include_reasoning": True,
+        }
+        
+        print(f"\n\033[1;36m{'═'*50}\033[0m")
+        print(f"\033[1;36m  ⚡ Zeus Agent — Live Stream\033[0m")
+        print(f"\033[1;36m{'═'*50}\033[0m\n")
+        
+        full_content, _ = _stream_chat_completion(payload, on_token, on_think)
+        
+        thinking_done.set()
+        t.join()
+        print("\n")
+        
     except Exception as e:
         _print_error(f"Error: {e}")
 
