@@ -9,6 +9,7 @@ REQUIREMENTS = [
     "pyttsx3",
     "openai==0.27.8",
     "rich",
+    "colorama",
 ]
 
 
