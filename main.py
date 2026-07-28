@@ -112,6 +112,9 @@ while True:
             print("you don't have enough credit")
         elif respcode == 429:
             print("You have reached your rate limit.")
+        else:
+            print("Unknown Error turn on vpn and reopen zeus agent")
+            askk = input("if with reopen It didn't work Enter new openrouter api key: ")
     else:
         print("checking api key...")
         import requests
@@ -135,6 +138,9 @@ while True:
         elif respcode == 429:
             print("You have reached your rate limit.")
             askk = input("Enter openrouter api key: ")
+        else:
+            print("Unknown Error turn on vpn and reopen zeus agent")
+            askk = input("if with reopen It didn't work Enter new openrouter api key: ")
 
 
 while True:
