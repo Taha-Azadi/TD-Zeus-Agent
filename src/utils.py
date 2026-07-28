@@ -50,9 +50,7 @@ TOOLS_SCHEMA = [
             "description": "List files and folders in a directory.",
             "parameters": {
                 "type": "object",
-                "properties": {
-                    "path": {"type": "string", "default": "."}
-                },
+                "properties": {"path": {"type": "string", "default": "."}},
                 "required": []
             }
         }
@@ -102,9 +100,7 @@ TOOLS_SCHEMA = [
             "description": "Take a screenshot.",
             "parameters": {
                 "type": "object",
-                "properties": {
-                    "save_path": {"type": "string", "default": "screenshot.png"}
-                },
+                "properties": {"save_path": {"type": "string", "default": "screenshot.png"}},
                 "required": []
             }
         }
@@ -116,9 +112,7 @@ TOOLS_SCHEMA = [
             "description": "Open an app by name.",
             "parameters": {
                 "type": "object",
-                "properties": {
-                    "app_name": {"type": "string"}
-                },
+                "properties": {"app_name": {"type": "string"}},
                 "required": ["app_name"]
             }
         }
@@ -130,9 +124,7 @@ TOOLS_SCHEMA = [
             "description": "Play a music file by name.",
             "parameters": {
                 "type": "object",
-                "properties": {
-                    "name": {"type": "string"}
-                },
+                "properties": {"name": {"type": "string"}},
                 "required": ["name"]
             }
         }
@@ -144,9 +136,7 @@ TOOLS_SCHEMA = [
             "description": "Open a website.",
             "parameters": {
                 "type": "object",
-                "properties": {
-                    "site_name": {"type": "string"}
-                },
+                "properties": {"site_name": {"type": "string"}},
                 "required": ["site_name"]
             }
         }
@@ -260,6 +250,7 @@ def open_application(app_name):
 
 
 def open_website(site_name):
+    import webbrowser
     site_map = {
         "youtube": "https://youtube.com", "google": "https://google.com",
         "github": "https://github.com", "stackoverflow": "https://stackoverflow.com",
@@ -278,6 +269,7 @@ def open_website(site_name):
 
 
 def get_current_time():
+    import datetime
     now = datetime.datetime.now()
     return now.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -304,9 +296,9 @@ def execute_tool(name, arguments):
         return f"Error in {name}: {e}"
 
 
-# ==================== STREAMING + TOOLS ====================
+# ==================== STREAMING + THINKING + TOOLS ====================
 
-def _stream_chat_completion(payload, on_token):
+def _stream_chat_completion(payload, on_token, on_thinking_done=None):
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
@@ -321,7 +313,10 @@ def _stream_chat_completion(payload, on_token):
         raise ConnectionError(f"HTTP {response.status_code}: {response.text[:200]}")
 
     full_text = ""
+    full_thinking = ""
+    in_thinking = False
     tool_calls_buffer = []
+    thinking_done_called = False
 
     for line in response.iter_lines():
         if not line:
@@ -354,22 +349,37 @@ def _stream_chat_completion(payload, on_token):
                         tool_calls_buffer[idx]['function']['arguments'] += func['arguments']
                 continue
 
+            # Thinking / reasoning
+            reasoning = delta.get('reasoning') or delta.get('reasoning_content')
+            if reasoning:
+                full_thinking += reasoning
+                in_thinking = True
+                continue
+
             # Main content
             content = delta.get('content', '')
             if content:
+                if in_thinking and on_thinking_done and not thinking_done_called:
+                    on_thinking_done(full_thinking)
+                    thinking_done_called = True
+                in_thinking = False
                 full_text += content
                 on_token(content, full_text)
 
         except json.JSONDecodeError:
             continue
 
-    return full_text, tool_calls_buffer
+    if in_thinking and on_thinking_done and not thinking_done_called:
+        on_thinking_done(full_thinking)
+
+    return full_text, full_thinking, tool_calls_buffer
 
 
-def _run_conversation_with_tools(messages, model="nvidia/nemotron-3-ultra-550b-a55b:free",
-                                  on_token=None, max_iterations=5):
+def _run_conversation_with_tools(messages, model="google/gemini-2.0-flash-exp:free",
+                                  on_token=None, on_thinking_done=None, max_iterations=5):
     iteration = 0
     final_content = ""
+    final_thinking = ""
 
     while iteration < max_iterations:
         iteration += 1
@@ -383,10 +393,11 @@ def _run_conversation_with_tools(messages, model="nvidia/nemotron-3-ultra-550b-a
             "tool_choice": "auto",
         }
 
-        content, tool_calls = _stream_chat_completion(
-            payload, on_token or (lambda t, f: None)
+        content, thinking, tool_calls = _stream_chat_completion(
+            payload, on_token or (lambda t, f: None), on_thinking_done
         )
         final_content = content
+        final_thinking += thinking
 
         if not tool_calls:
             break
@@ -416,7 +427,7 @@ def _run_conversation_with_tools(messages, model="nvidia/nemotron-3-ultra-550b-a
                 "content": str(result)
             })
 
-    return final_content
+    return final_content, final_thinking
 
 
 # ==================== SPINNER ====================
@@ -441,11 +452,38 @@ def _thinking_spinner():
 # ==================== AI FUNCTIONS ====================
 
 def ai_speak(self):
-    done, t = _thinking_spinner()
-    try:
-        def on_token(token, full):
-            print(token, end='', flush=True)
+    stop_event = threading.Event()
+    content_started = threading.Event()
+    thinking_text = [""]
 
+    def on_thinking_done(thinking):
+        thinking_text[0] = thinking
+        content_started.set()
+        sys.stdout.write("\r" + " "*30 + "\r")
+        sys.stdout.flush()
+        if thinking:
+            print(f"\033[90m💭 {thinking[:300]}{'...' if len(thinking)>300 else ''}\033[0m\n")
+
+    def on_token(token, full):
+        if not content_started.is_set():
+            content_started.set()
+            sys.stdout.write("\r" + " "*30 + "\r")
+            sys.stdout.flush()
+        print(token, end='', flush=True)
+
+    def spinner():
+        chars = itertools.cycle(['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'])
+        while not stop_event.is_set() and not content_started.is_set():
+            sys.stdout.write(f"\r\033[90m🧠 Thinking {next(chars)}\033[0m")
+            sys.stdout.flush()
+            _time.sleep(0.08)
+        sys.stdout.write("\r" + " "*30 + "\r")
+        sys.stdout.flush()
+
+    t = threading.Thread(target=spinner)
+    t.start()
+
+    try:
         messages = [
             {
                 "role": "system",
@@ -462,7 +500,9 @@ def ai_speak(self):
         print(f"\033[1;36m  ⚡ Zeus Agent — Live Stream\033[0m")
         print(f"\033[1;36m{'═'*50}\033[0m\n")
 
-        full_content = _run_conversation_with_tools(messages, on_token=on_token)
+        full_content, _ = _run_conversation_with_tools(
+            messages, on_token=on_token, on_thinking_done=on_thinking_done
+        )
 
         print("\n")
 
@@ -472,16 +512,43 @@ def ai_speak(self):
     except Exception as e:
         _print_error(f"Error: {e}")
     finally:
-        done.set()
+        stop_event.set()
         t.join()
 
 
 def ai_type(self):
-    done, t = _thinking_spinner()
-    try:
-        def on_token(token, full):
-            print(token, end='', flush=True)
+    stop_event = threading.Event()
+    content_started = threading.Event()
+    thinking_text = [""]
 
+    def on_thinking_done(thinking):
+        thinking_text[0] = thinking
+        content_started.set()
+        sys.stdout.write("\r" + " "*30 + "\r")
+        sys.stdout.flush()
+        if thinking:
+            print(f"\033[90m💭 {thinking[:300]}{'...' if len(thinking)>300 else ''}\033[0m\n")
+
+    def on_token(token, full):
+        if not content_started.is_set():
+            content_started.set()
+            sys.stdout.write("\r" + " "*30 + "\r")
+            sys.stdout.flush()
+        print(token, end='', flush=True)
+
+    def spinner():
+        chars = itertools.cycle(['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'])
+        while not stop_event.is_set() and not content_started.is_set():
+            sys.stdout.write(f"\r\033[90m🧠 Thinking {next(chars)}\033[0m")
+            sys.stdout.flush()
+            _time.sleep(0.08)
+        sys.stdout.write("\r" + " "*30 + "\r")
+        sys.stdout.flush()
+
+    t = threading.Thread(target=spinner)
+    t.start()
+
+    try:
         messages = [
             {
                 "role": "system",
@@ -498,14 +565,16 @@ def ai_type(self):
         print(f"\033[1;36m  ⚡ Zeus Agent — Live Stream\033[0m")
         print(f"\033[1;36m{'═'*50}\033[0m\n")
 
-        full_content = _run_conversation_with_tools(messages, on_token=on_token)
+        full_content, _ = _run_conversation_with_tools(
+            messages, on_token=on_token, on_thinking_done=on_thinking_done
+        )
 
         print("\n")
 
     except Exception as e:
         _print_error(f"Error: {e}")
     finally:
-        done.set()
+        stop_event.set()
         t.join()
 
 
