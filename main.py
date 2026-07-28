@@ -150,7 +150,7 @@ while True:
         a = r.read().strip()
 
     if a == "":
-        ask2 = input("What's your name? (Press Enter for never): ")
+        ask2 = input("What's your name? (Press Enter for never ask you this): ")
         with open("ask2.txt", "w") as f:
             if ask2 == "":
                 f.write("Never")
