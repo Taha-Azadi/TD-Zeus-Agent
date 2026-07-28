@@ -23,6 +23,141 @@ except ImportError:
     _HAS_RICH = False
     console = None
 
+
+TOOLS_SCHEMA = [
+    {
+        "type": "function",
+        "function": {
+            "name": "run_shell_command",
+            "description": "Execute a shell command on the computer. Use for file operations, git, pip, system commands, etc.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {"type": "string", "description": "Shell command to run."},
+                    "cwd": {"type": "string", "description": "Optional working directory."}
+                },
+                "required": ["command"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_directory",
+            "description": "List files and folders in a directory.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Directory path. Defaults to current directory.", "default": "."}
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_file_content",
+            "description": "Read content of a text file.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filepath": {"type": "string", "description": "Path to the file."},
+                    "max_chars": {"type": "integer", "description": "Max characters to read.", "default": 8000}
+                },
+                "required": ["filepath"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "write_file_content",
+            "description": "Write or overwrite content to a file.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filepath": {"type": "string", "description": "Path to the file."},
+                    "content": {"type": "string", "description": "Content to write."}
+                },
+                "required": ["filepath", "content"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_system_info",
+            "description": "Get CPU, RAM, disk, and OS info.",
+            "parameters": {"type": "object", "properties": {}, "required": []}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "take_screenshot",
+            "description": "Take a screenshot and save it.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "save_path": {"type": "string", "description": "Save path. Default: screenshot.png", "default": "screenshot.png"}
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "open_application",
+            "description": "Open an application by name.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "app_name": {"type": "string", "description": "Application name."}
+                },
+                "required": ["app_name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "play_music",
+            "description": "Find and play a music file on the computer.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Name or part of the music filename."}
+                },
+                "required": ["name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "open_website",
+            "description": "Open a website in the default browser.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "site_name": {"type": "string", "description": "Site name like youtube, github, google, etc."}
+                },
+                "required": ["site_name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_current_time",
+            "description": "Get current system date and time.",
+            "parameters": {"type": "object", "properties": {}, "required": []}
+        }
+    }
+]
+
 def run_shell_command(command, cwd=None):
     try:
         result = subprocess.run(
