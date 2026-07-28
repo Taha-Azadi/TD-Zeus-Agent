@@ -366,7 +366,7 @@ def _stream_chat_completion(payload, on_token):
     return full_text, tool_calls_buffer
 
 
-def _run_conversation_with_tools(messages, model="google/gemini-2.0-flash-exp:free",
+def _run_conversation_with_tools(messages, model="nvidia/nemotron-3-ultra-550b-a55b:free",
                                   on_token=None, max_iterations=5):
     iteration = 0
     final_content = ""
