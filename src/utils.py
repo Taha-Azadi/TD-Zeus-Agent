@@ -371,7 +371,7 @@ def ai_speak(self):
         )
 
         if response.status_code == 401:
-            _print_error("Error 401: Invalid or missing API Key.")
+            _print_error("Error 401: Invalid or missing API Key. reopen zeus agent to fix")
             return
         elif response.status_code != 200:
             _print_error(f"HTTP Error {response.status_code}: {response.text}")
