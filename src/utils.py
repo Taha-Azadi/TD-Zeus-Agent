@@ -7,6 +7,7 @@ import difflib, datetime
 import platform
 import pyttsx3
 import requests
+from colorama import Fore
 try:
     from rich.console import Console
     from rich.markdown import Markdown
@@ -49,7 +50,7 @@ with open("ai.txt", "r") as r:
 def clear():
     os.system("cls" if os.name == "nt" else "clear")
     print("""
-    
+    {Fore.YELLOW}
 ╶─╮   ╭─╴   ╷ ╷   ╭─╮      ╭─╮   ╭─╴   ╭─╴   ╭╮╷   ╶┬╴
 ╭─╯   ├╴    │ │   ╰─╮      ├─┤   │╶╮   ├╴    │╰┤    │
 ╰─╴   ╰─╴   ╰─╯   ╰─╯      ╵ ╵   ╰─╯   ╰─╴   ╵ ╵    ╵
@@ -74,6 +75,7 @@ def clear():
 ║                     for edit api key go to ai.txt and edit this                        ║
 ║                   for edit your name go to ask2.txt and edit this                      ║
 ╚════════════════════════════════════════════════════════════════════════════════════════╝
+{Fore.RESET}
 """)
 API_KEY = re
 USER_PATH = os.path.expanduser("~")
