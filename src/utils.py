@@ -764,7 +764,7 @@ def ai_type(self):
         t.start()
         
         payload = {
-            "model": "deepseek/deepseek-r1:free",
+            "model": "meta-llama/llama-3.1-70b-instruct:free",
             "messages": [
                 {
                     "role": "system",
