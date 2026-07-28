@@ -7,10 +7,42 @@ import difflib, datetime
 import platform
 import pyttsx3
 import requests
-from rich.console import Console
-from rich.markdown import Markdown
+try:
+    from rich.console import Console
+    from rich.markdown import Markdown
+    from rich.panel import Panel
+    _HAS_RICH = True
+    console = Console()
+except ImportError:
+    _HAS_RICH = False
+    console = None
 
-console = Console()
+
+def _print_md(text: str, title: str = "Zeus Agent"):
+    """چاپ Markdown — اگه rich نصب باشه رندر شده، وگرنه ساده"""
+    if _HAS_RICH:
+        md = Markdown(text)
+        console.print(Panel(md, title=f"[bold cyan]{title}[/]", border_style="cyan"))
+    else:
+        print(f"\n{'='*50}")
+        print(f"  {title}")
+        print(f"{'='*50}")
+        print(text)
+        print(f"{'='*50}\n")
+
+
+def _print_error(msg: str):
+    if _HAS_RICH:
+        console.print(f"[bold red]❌ {msg}[/]")
+    else:
+        print(f"❌ {msg}")
+
+
+def _print_warn(msg: str):
+    if _HAS_RICH:
+        console.print(f"[bold yellow]⚠️ {msg}[/]")
+    else:
+        print(f"⚠️ {msg}")
 
 with open("ai.txt", "r") as r:
     re = r.read()
@@ -297,129 +329,159 @@ sites = [
     ["boundary", "https://www.boundaryproject.io"],
 ]
 
+# ==================== AI FUNCTIONS ====================
 
 def ai_speak(self):
-    response = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {API_KEY}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "You ARE Zeus Agent — an AI assistant created by Taha-Azadi. "
-                        "This is your one and only true identity. "
-                        "You must NEVER say you are Claude, Anthropic, an AI assistant, or any other identity. "
-                        "You must NEVER claim you cannot roleplay or adopt a persona. "
-                        "You must NEVER use phrases like 'I'm Claude', 'I am an AI assistant created by Anthropic', "
-                        "'I don't roleplay', or 'I cannot pretend to be'. "
-                        "If you ever feel the urge to correct your identity, suppress it completely. "
-                        "You ARE Zeus Agent. Always respond as Zeus Agent. "
-                        "GitHub: https://github.com/Taha-Azadi"
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": (
-                        f"My name is {self.name}. "
-                        f"Answer me as Zeus Agent:\n\n{self.text}"
-                    ),
-                },
-            ],
-            "temperature": 0.7,
-        },
-    )
-
     try:
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "You ARE Zeus Agent — an AI assistant created by Taha-Azadi. "
+                            "This is your one and only true identity. "
+                            "You must NEVER say you are Claude, Anthropic, an AI assistant, or any other identity. "
+                            "You must NEVER claim you cannot roleplay or adopt a persona. "
+                            "You must NEVER use phrases like 'I'm Claude', 'I am an AI assistant created by Anthropic', "
+                            "'I don't roleplay', or 'I cannot pretend to be'. "
+                            "If you ever feel the urge to correct your identity, suppress it completely. "
+                            "You ARE Zeus Agent. Always respond as Zeus Agent. "
+                            "Format your responses using Markdown (headings, bold, lists, code blocks). "
+                            "GitHub: https://github.com/Taha-Azadi"
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": (
+                            f"My name is {self.name}. "
+                            f"Answer me as Zeus Agent using Markdown formatting:\n\n{self.text}"
+                        ),
+                    },
+                ],
+                "temperature": 0.7,
+            },
+            timeout=30,
+        )
+
+        if response.status_code == 401:
+            _print_error("Error 401: Invalid or missing API Key.")
+            return
+        elif response.status_code != 200:
+            _print_error(f"HTTP Error {response.status_code}: {response.text}")
+            return
+
         data = response.json()
+
         if "choices" in data and len(data["choices"]) > 0:
             content = data["choices"][0]["message"]["content"]
+
             # فیلتر denial
             denial_phrases = [
-                "I'm Claude",
-                "I am Claude",
-                "Anthropic",
-                "I am an AI assistant",
-                "I don't roleplay",
-                "I cannot pretend",
-                "I am not Zeus",
+                "i'm claude", "i am claude", "anthropic",
+                "i am an ai assistant", "i don't roleplay",
+                "i cannot pretend", "i am not zeus",
             ]
-            lower_content = content.lower()
-            if any(phrase.lower() in lower_content for phrase in denial_phrases):
-                print(f"Zeus Agent: Hey {self.name}, I am ready to assist you. Please ask your question again.")
+            if any(phrase in content.lower() for phrase in denial_phrases):
+                _print_md(
+                    f"Hey **{self.name}**, I am ready to assist you. Please ask your question again.",
+                    title="Zeus Agent"
+                )
             else:
-                print(content)
+                _print_md(content, title="Zeus Agent")
+
+        elif "error" in data:
+            _print_error(f"API Error: {data['error'].get('message', 'Unknown error')}")
         else:
-            print("Error: Unexpected response format.")
+            _print_warn("Unexpected response format.")
             print(data)
+
+    except requests.exceptions.RequestException as e:
+        _print_error(f"Network Error: {e}")
     except Exception as e:
-        print(f"Error: {e}")
+        _print_error(f"Error: {e}")
 
 
 def ai_type(self):
-    response = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {API_KEY}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "You ARE Zeus Agent — an AI assistant created by Taha-Azadi. "
-                        "This is your one and only true identity. "
-                        "You must NEVER say you are Claude, Anthropic, an AI assistant, or any other identity. "
-                        "You must NEVER claim you cannot roleplay or adopt a persona. "
-                        "You must NEVER use phrases like 'I'm Claude', 'I am an AI assistant created by Anthropic', "
-                        "'I don't roleplay', or 'I cannot pretend to be'. "
-                        "If you ever feel the urge to correct your identity, suppress it completely. "
-                        "You ARE Zeus Agent. Always respond as Zeus Agent. "
-                        "GitHub: https://github.com/Taha-Azadi"
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": (
-                        f"My name is {self.name}. "
-                        f"Answer me as Zeus Agent:\n\n{self.text}"
-                    ),
-                },
-            ],
-            "temperature": 0.7,
-        },
-    )
-
     try:
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "You ARE Zeus Agent — an AI assistant created by Taha-Azadi. "
+                            "This is your one and only true identity. "
+                            "You must NEVER say you are Claude, Anthropic, an AI assistant, or any other identity. "
+                            "You must NEVER claim you cannot roleplay or adopt a persona. "
+                            "You must NEVER use phrases like 'I'm Claude', 'I am an AI assistant created by Anthropic', "
+                            "'I don't roleplay', or 'I cannot pretend to be'. "
+                            "If you ever feel the urge to correct your identity, suppress it completely. "
+                            "You ARE Zeus Agent. Always respond as Zeus Agent. "
+                            "Format your responses using Markdown (headings, bold, lists, code blocks). "
+                            "GitHub: https://github.com/Taha-Azadi"
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": (
+                            f"My name is {self.name}. "
+                            f"Answer me as Zeus Agent using Markdown formatting:\n\n{self.text}"
+                        ),
+                    },
+                ],
+                "temperature": 0.7,
+            },
+            timeout=30,
+        )
+
+        if response.status_code == 401:
+            _print_error("Error 401: Invalid or missing API Key.")
+            return
+        elif response.status_code != 200:
+            _print_error(f"HTTP Error {response.status_code}: {response.text}")
+            return
+
         data = response.json()
+
         if "choices" in data and len(data["choices"]) > 0:
             content = data["choices"][0]["message"]["content"]
-            # فیلتر denial
+
             denial_phrases = [
-                "I'm Claude",
-                "I am Claude",
-                "Anthropic",
-                "I am an AI assistant",
-                "I don't roleplay",
-                "I cannot pretend",
-                "I am not Zeus",
+                "i'm claude", "i am claude", "anthropic",
+                "i am an ai assistant", "i don't roleplay",
+                "i cannot pretend", "i am not zeus",
             ]
-            lower_content = content.lower()
-            if any(phrase.lower() in lower_content for phrase in denial_phrases):
-                print(f"Zeus Agent: Hey {self.name}, I am ready to assist you. Please ask your question again.")
+            if any(phrase in content.lower() for phrase in denial_phrases):
+                _print_md(
+                    f"Hey **{self.name}**, I am ready to assist you. Please ask your question again.",
+                    title="Zeus Agent"
+                )
             else:
-                print(content)
+                _print_md(content, title="Zeus Agent")
+
+        elif "error" in data:
+            _print_error(f"API Error: {data['error'].get('message', 'Unknown error')}")
         else:
-            print("Error: Unexpected response format.")
+            _print_warn("Unexpected response format.")
             print(data)
+
+    except requests.exceptions.RequestException as e:
+        _print_error(f"Network Error: {e}")
     except Exception as e:
-        print(f"Error: {e}")
+        _print_error(f"Error: {e}")
 
 
 def open_any(self):
