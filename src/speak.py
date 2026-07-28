@@ -6,7 +6,7 @@ from src.utils import (
     hey_Zeus,
     takeCommand,
     say,
-    time,
+    wtime,
     ai_speak,
     clear,
 )
@@ -32,7 +32,7 @@ class Speak:
                     generate_and_bye(self)
                     break
                 if "the time" in self.text.lower() or "time is" in self.text.lower():
-                    time(self)
+                    wtime(self)
 
                 elif "hello" in self.text.lower() or "hi " in self.text.lower():
                     generate_and_hello(self)
