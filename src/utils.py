@@ -49,7 +49,7 @@ with open("ai.txt", "r") as r:
     re = r.read()
 def clear():
     os.system("cls" if os.name == "nt" else "clear")
-    print("""
+    print(f"""
     {Fore.YELLOW}
 ╶─╮   ╭─╴   ╷ ╷   ╭─╮      ╭─╮   ╭─╴   ╭─╴   ╭╮╷   ╶┬╴
 ╭─╯   ├╴    │ │   ╰─╮      ├─┤   │╶╮   ├╴    │╰┤    │
