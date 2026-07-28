@@ -21,7 +21,6 @@ class Speak:
         print("Zeus: hello I'm Zeus Agent")
 
         while True:
-
             self.text = self.takeCommand(self)
 
             if self.text != None:
@@ -33,7 +32,6 @@ class Speak:
                     break
                 if "the time" in self.text.lower() or "time is" in self.text.lower():
                     wtime(self)
-
                 elif "hello" in self.text.lower() or "hi " in self.text.lower():
                     generate_and_hello(self)
                 elif "clear" in self.text.lower() or "cls " in self.text.lower():
