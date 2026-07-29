@@ -18,7 +18,7 @@ try:
     from rich.console import Console
     from rich.markdown import Markdown
     from rich.panel import Panel
-    from rich.live import Live 
+    from rich.live import Live
     _HAS_RICH = True
     console = Console()
 except ImportError:
@@ -392,7 +392,6 @@ def _run_conversation_with_tools(messages, model="nvidia/nemotron-3-ultra-550b-a
             "tool_choice": "auto",
         }
 
-        # FIX: on_token رو مستقیم پاس بده نه wrapper
         content, thinking, tool_calls = _stream_chat_completion(
             payload, on_token or (lambda t, f: None), on_thinking_done
         )
@@ -453,19 +452,6 @@ def _thinking_spinner():
 
 def ai_speak(self):
     md_buffer = [""]
-    content_started = threading.Event()
-
-    def spinner():
-        chars = itertools.cycle(['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'])
-        while not content_started.is_set():
-            sys.stdout.write(f"\r\033[90m🧠 Thinking {next(chars)}\033[0m")
-            sys.stdout.flush()
-            _time.sleep(0.08)
-        sys.stdout.write("\r" + " "*30 + "\r")
-        sys.stdout.flush()
-
-    t = threading.Thread(target=spinner)
-    t.start()
 
     try:
         messages = [
@@ -491,14 +477,9 @@ def ai_speak(self):
 
         def on_thinking_done(thinking):
             if thinking:
-                content_started.set()
-                t.join()
                 console.print(f"\n[dim]💭 {thinking[:300]}{'...' if len(thinking)>300 else ''}[/dim]\n")
 
         def on_token(token, full):
-            if not content_started.is_set():
-                content_started.set()
-                t.join()
             md_buffer[0] += token
             new_md = Markdown(md_buffer[0])
             new_panel = Panel(
@@ -510,10 +491,11 @@ def ai_speak(self):
             )
             live.update(new_panel)
 
-        with Live(panel, console=console, refresh_per_second=20, vertical_overflow="visible") as live:
-            full_content, _ = _run_conversation_with_tools(
-                messages, on_token=on_token, on_thinking_done=on_thinking_done
-            )
+        with console.status("[bold cyan]🧠 Thinking...[/bold cyan]", spinner="dots"):
+            with Live(panel, console=console, refresh_per_second=20, vertical_overflow="visible") as live:
+                full_content, _ = _run_conversation_with_tools(
+                    messages, on_token=on_token, on_thinking_done=on_thinking_done
+                )
 
         console.print()
 
@@ -521,26 +503,11 @@ def ai_speak(self):
             say(full_content)
 
     except Exception as e:
-        content_started.set()
-        t.join()
         console.print(f"[bold red]❌ Error: {e}[/bold red]")
 
 
 def ai_type(self):
     md_buffer = [""]
-    content_started = threading.Event()
-
-    def spinner():
-        chars = itertools.cycle(['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'])
-        while not content_started.is_set():
-            sys.stdout.write(f"\r\033[90m🧠 Thinking {next(chars)}\033[0m")
-            sys.stdout.flush()
-            _time.sleep(0.08)
-        sys.stdout.write("\r" + " "*30 + "\r")
-        sys.stdout.flush()
-
-    t = threading.Thread(target=spinner)
-    t.start()
 
     try:
         messages = [
@@ -566,14 +533,9 @@ def ai_type(self):
 
         def on_thinking_done(thinking):
             if thinking:
-                content_started.set()
-                t.join()
                 console.print(f"\n[dim]💭 {thinking[:300]}{'...' if len(thinking)>300 else ''}[/dim]\n")
 
         def on_token(token, full):
-            if not content_started.is_set():
-                content_started.set()
-                t.join()
             md_buffer[0] += token
             new_md = Markdown(md_buffer[0])
             new_panel = Panel(
@@ -585,16 +547,15 @@ def ai_type(self):
             )
             live.update(new_panel)
 
-        with Live(panel, console=console, refresh_per_second=20, vertical_overflow="visible") as live:
-            full_content, _ = _run_conversation_with_tools(
-                messages, on_token=on_token, on_thinking_done=on_thinking_done
-            )
+        with console.status("[bold cyan]🧠 Thinking...[/bold cyan]", spinner="dots"):
+            with Live(panel, console=console, refresh_per_second=20, vertical_overflow="visible") as live:
+                full_content, _ = _run_conversation_with_tools(
+                    messages, on_token=on_token, on_thinking_done=on_thinking_done
+                )
 
         console.print()
 
     except Exception as e:
-        content_started.set()
-        t.join()
         console.print(f"[bold red]❌ Error: {e}[/bold red]")
 
 # ==================== PRINT HELPERS ====================
