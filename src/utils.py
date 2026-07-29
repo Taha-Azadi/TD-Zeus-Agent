@@ -166,6 +166,20 @@ TOOLS_SCHEMA = [
             }
         }
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_python_script",
+            "description": "Run a Python script string and return output.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "script": {"type": "string", "description": "Python code to execute"}
+                },
+                "required": ["script"]
+            }
+        }
+    },
 ]
 
 
@@ -227,6 +241,21 @@ def write_binary_file(filepath, content_bytes):
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_bytes(content_bytes)
         return f"Saved: {p}"
+    except Exception as e:
+        return f"Error: {e}"
+
+def run_python_script(script):
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True, text=True, timeout=60,
+            encoding='utf-8', errors='ignore'
+        )
+        out = result.stdout.strip() if result.stdout.strip() else "[No output]"
+        err = result.stderr.strip() if result.stderr.strip() else ""
+        return f"Exit: {result.returncode}\n{out}" + (f"\nErr: {err}" if err else "")
+    except subprocess.TimeoutExpired:
+        return "Timed out after 60s"
     except Exception as e:
         return f"Error: {e}"
 
@@ -305,6 +334,7 @@ def execute_tool(name, arguments):
         "read_file_content": read_file_content,
         "write_file_content": write_file_content,
         "write_binary_file": write_binary_file,
+        "run_python_script": run_python_script,
         "get_system_info": get_system_info,
         "take_screenshot": take_screenshot,
         "open_application": open_application,
@@ -354,7 +384,17 @@ def _stream_chat_completion(payload, on_token, on_thinking_done=None):
             break
         try:
             chunk = json.loads(data_str)
-            delta = chunk.get('choices', [{}])[0].get('delta', {})
+            choices = chunk.get('choices', [])
+            
+            # ===== FIX: چک کردن خالی نبودن choices =====
+            if not choices or not isinstance(choices, list):
+                continue
+            
+            delta = choices[0].get('delta', {}) if choices[0] else {}
+            # =============================================
+            
+            if not delta:
+                continue
 
             tc_delta = delta.get('tool_calls')
             if tc_delta:
@@ -473,7 +513,7 @@ def _thinking_spinner():
 # ==================== AI FUNCTIONS ====================
 
 
-def ai_speak(user_name, user_text):
+def ai_speak(self):
     md_buffer = [""]
 
     try:
@@ -486,20 +526,8 @@ def ai_speak(user_name, user_text):
                     "Use tools when needed. Respond as Zeus Agent with Markdown."
                 ),
             },
-            {"role": "user", "content": f"My name is {user_name}.\n\n{user_text}"},
+            {"role": "user", "content": f"My name is {self.name}.\n\n{self.text}"},
         ]
-
-        if not _HAS_RICH or console is None:
-            # Fallback بدون rich
-            full_content, _ = _run_conversation_with_tools(messages)
-            print(f"\n{'='*50}")
-            print("  Zeus Agent")
-            print(f"{'='*50}")
-            print(full_content)
-            print(f"{'='*50}\n")
-            if full_content:
-                say(full_content)
-            return
 
         md = Markdown("")
         panel = Panel(
@@ -538,13 +566,10 @@ def ai_speak(user_name, user_text):
             say(full_content)
 
     except Exception as e:
-        if _HAS_RICH and console:
-            console.print(f"[bold red]❌ Error: {e}[/bold red]")
-        else:
-            print(f"❌ Error: {e}")
+        console.print(f"[bold red]❌ Error: {e}[/bold red]")
 
 
-def ai_type(user_name, user_text):
+def ai_type(self):
     md_buffer = [""]
 
     try:
@@ -557,17 +582,8 @@ def ai_type(user_name, user_text):
                     "Think step by step. Use Markdown."
                 ),
             },
-            {"role": "user", "content": f"My name is {user_name}.\n\n{user_text}"},
+            {"role": "user", "content": f"My name is {self.name}.\n\n{self.text}"},
         ]
-
-        if not _HAS_RICH or console is None:
-            full_content, _ = _run_conversation_with_tools(messages)
-            print(f"\n{'='*50}")
-            print("  Zeus Agent")
-            print(f"{'='*50}")
-            print(full_content)
-            print(f"{'='*50}\n")
-            return
 
         md = Markdown("")
         panel = Panel(
@@ -603,10 +619,7 @@ def ai_type(user_name, user_text):
         console.print()
 
     except Exception as e:
-        if _HAS_RICH and console:
-            console.print(f"[bold red]❌ Error: {e}[/bold red]")
-        else:
-            print(f"❌ Error: {e}")
+        console.print(f"[bold red]❌ Error: {e}[/bold red]")
 
 # ==================== PRINT HELPERS ====================
 
