@@ -35,5 +35,5 @@ class Type:
                     x in self.text for x in ["hey Zeus", "Zeus", "hey z", "hello Zeus"]
                 ):
                     hey_Zeus_type(self)
-                elif "open" not in self.text.lower():
+                else:
                     ai_type(self)
