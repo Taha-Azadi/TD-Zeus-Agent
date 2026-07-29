@@ -40,5 +40,5 @@ class Speak:
                     x in self.text for x in ["hey Zeus", "Zeus", "hey z", "hello Zeus"]
                 ):
                     hey_Zeus(self)
-                elif "open" not in self.text.lower():
+                else:
                     ai_speak(self)
