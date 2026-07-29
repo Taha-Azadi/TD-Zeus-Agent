@@ -501,7 +501,7 @@ python -c "from src.memory import load_memories; print(load_memories())"
 - [ ] 🔗 Web scraping and data extraction
 - [ ] 🤝 Multi-user support
 
-### v2.0.4 (Future)
+### v1.0.4 (Future)
 - [ ] 🧠 Local LLM support (Llama, Mistral)
 - [ ] 📱 Mobile companion app
 - [ ] ☁️ Cloud sync for memories
