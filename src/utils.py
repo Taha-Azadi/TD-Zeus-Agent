@@ -1153,60 +1153,7 @@ sites = [
 ]
 
 
-# ==================== LEGACY FUNCTIONS ====================
-
-def open_any(self):
-    for site in sites:
-        if f"open {site[0]}" in self.text.lower():
-            webbrowser.open(f"{site[1]}")
-            self.say(f"I opened {site[0]} for you.")
-            print(f"Zeus: I opened {site[0]} for you.")
-    if "open" in self.text.lower() and "music" in self.text.lower() or "song" in self.text.lower():
-        music_name = self.text.lower().replace("open", "").replace("music", "").strip()
-        if play_music(music_name):
-            self.say(f"I opened {music_name} for you.")
-            print(f"Zeus: Playing {music_name}")
-        else:
-            self.say("I couldn't find that music.")
-            print("Zeus: Music not found")
-    if "open camera" in self.text.lower() or "open facetime" in self.text.lower():
-        system = platform.system()
-        if system == "Windows":
-            os.system("start microsoft.windows.camera:")
-        elif system == "Linux":
-            subprocess.Popen(["cheese"])
-        elif system == "Darwin":
-            if "facetime" in self.text.lower():
-                subprocess.Popen(["open", "-a", "FaceTime"])
-            else:
-                subprocess.Popen(["open", "-a", "Photo Booth"])
-        self.say("I open camera for you")
-        print("Zeus I open camera for you")
-
-
-def open_any_type(self):
-    for site in sites:
-        if f"open {site[0]}" in self.text.lower():
-            webbrowser.open(f"{site[1]}")
-            print(f"Zeus: I opened {site[0]} for you.")
-    if (("open" in self.text.lower() and "music" in self.text.lower()) or ("open" in self.text.lower() and "song" in self.text.lower())):
-        music_name = self.text.lower().replace("open", "").replace("music", "").replace("song", "").strip()
-        if play_music(music_name):
-            print(f"Zeus: Playing {music_name}")
-        else:
-            print("Zeus: Music not found")
-    if "open camera" in self.text.lower() or "open facetime" in self.text.lower():
-        system = platform.system()
-        if system == "Windows":
-            os.system("start microsoft.windows.camera:")
-        elif system == "Linux":
-            subprocess.Popen(["cheese"])
-        elif system == "Darwin":
-            if "facetime" in self.text.lower():
-                subprocess.Popen(["open", "-a", "FaceTime"])
-            else:
-                subprocess.Popen(["open", "-a", "Photo Booth"])
-        print("Zeus I open camera for you")
+# ==================== LEGACY FUNCTIONS ===================
 
 
 def wtime(self):
@@ -1259,39 +1206,6 @@ def generate_and_bye_type(self):
     print(f"Zeus: {self.bye}")
 
 
-def generate_and_hello(self):
-    name = self.name
-    global hello
-    self.hello = rchoice([
-        f"Hello {name}", f"Hi {name}", f"Hey {name}",
-        f"Hello there {name}", f"Hi there {name}", f"Welcome {name}",
-        f"Welcome back {name}", f"Nice to see you {name}",
-        f"Good to see you {name}", f"Hey there {name}",
-        f"Greetings {name}", f"Howdy {name}", f"What's up {name}",
-        f"How are you {name}", f"Hope you're doing well {name}",
-        f"Nice to meet you {name}", f"Great to see you {name}",
-        f"Hello again {name}", f"Hey, welcome {name}",
-        f"Ready to help you {name}",
-    ])
-    self.say(f"{self.hello}")
-    print(f"Zeus: {self.hello}")
-
-
-def generate_and_hello_type(self):
-    name = self.name
-    global hello
-    self.hello = rchoice([
-        f"Hello {name}", f"Hi {name}", f"Hey {name}",
-        f"Hello there {name}", f"Hi there {name}", f"Welcome {name}",
-        f"Welcome back {name}", f"Nice to see you {name}",
-        f"Good to see you {name}", f"Hey there {name}",
-        f"Greetings {name}", f"Howdy {name}", f"What's up {name}",
-        f"How are you {name}", f"Hope you're doing well {name}",
-        f"Nice to meet you {name}", f"Great to see you {name}",
-        f"Hello again {name}", f"Hey, welcome {name}",
-        f"Ready to help you {name}",
-    ])
-    print(f"Zeus: {self.hello}")
 
 
 def hey_Zeus(self):
