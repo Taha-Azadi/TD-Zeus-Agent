@@ -310,7 +310,7 @@ def _stream_chat_completion(payload, on_token, on_thinking_done=None):
         headers=headers, json=payload, stream=True, timeout=60
     )
     if response.status_code == 401:
-        raise PermissionError("Invalid API Key (401) reopen zeus agent")
+        raise PermissionError("Invalid API Key (401)")
     elif response.status_code != 200:
         raise ConnectionError(f"HTTP {response.status_code}: {response.text[:200]}")
 
@@ -333,7 +333,6 @@ def _stream_chat_completion(payload, on_token, on_thinking_done=None):
             chunk = json.loads(data_str)
             delta = chunk.get('choices', [{}])[0].get('delta', {})
 
-            # Tool calls
             tc_delta = delta.get('tool_calls')
             if tc_delta:
                 for tc in tc_delta:
@@ -351,14 +350,12 @@ def _stream_chat_completion(payload, on_token, on_thinking_done=None):
                         tool_calls_buffer[idx]['function']['arguments'] += func['arguments']
                 continue
 
-            # Thinking / reasoning
             reasoning = delta.get('reasoning') or delta.get('reasoning_content')
             if reasoning:
                 full_thinking += reasoning
                 in_thinking = True
                 continue
 
-            # Main content
             content = delta.get('content', '')
             if content:
                 if in_thinking and on_thinking_done and not thinking_done_called:
@@ -452,6 +449,7 @@ def _thinking_spinner():
 
 # ==================== AI FUNCTIONS ====================
 
+
 def ai_speak(self):
     stop_event = threading.Event()
     content_started = threading.Event()
@@ -482,7 +480,6 @@ def ai_speak(self):
             {"role": "user", "content": f"My name is {self.name}.\n\n{self.text}"},
         ]
 
-        # ساخت Panel خالی برای شروع
         md = Markdown("")
         panel = Panel(
             md,
@@ -516,7 +513,6 @@ def ai_speak(self):
                 messages, on_token=on_token, on_thinking_done=on_thinking_done
             )
 
-        # newline بعد از Panel
         console.print()
 
         if full_content:
