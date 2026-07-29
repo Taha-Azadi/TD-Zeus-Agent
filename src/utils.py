@@ -257,6 +257,35 @@ TOOLS_SCHEMA = [
                 "required": ["query"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_memory",
+            "description": "Update a memory entry. Replaces any previous entries with the same key. Use this when user corrects or changes information.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "key": {"type": "string"},
+                    "content": {"type": "string"}
+                },
+                "required": ["key", "content"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_memory",
+            "description": "Get the latest value for a specific memory key. Use this to check current value before updating.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "key": {"type": "string"}
+                },
+                "required": ["key"]
+            }
+        }
     }
 ]
 
@@ -289,7 +318,32 @@ def save_memory(key, content):
     _save_memory_file(memories)
     return f"✅ Memory saved: '{key}'"
 
+def update_memory(key, content):
+    """Update existing memory or create new. Replaces old entries with same key."""
+    memories = _load_memory_file()
+    
+    # حذف همه رکوردهای قبلی با همین key
+    memories = [m for m in memories if m['key'] != key]
+    
+    # اضافه کردن رکورد جدید
+    memory = {
+        "id": len(memories) + 1,
+        "timestamp": datetime.now().isoformat(),
+        "key": key,
+        "content": content
+    }
+    memories.append(memory)
+    _save_memory_file(memories)
+    return f"✅ Memory updated: '{key}' = '{content}'"
 
+
+def get_memory(key):
+    """Get the LATEST value for a key."""
+    memories = _load_memory_file()
+    # فیلتر بر اساس key و گرفتن آخرین مورد
+    matches = [m for m in memories if m['key'] == key]
+    return matches[-1] if matches else None
+    
 def load_memories():
     memories = _load_memory_file()
     if not memories:
@@ -466,6 +520,8 @@ def execute_tool(name, arguments):
         "open_website": open_website,
         "get_current_time": get_current_time,
         "save_memory": save_memory,
+        "update_memory": update_memory,
+        "get_memory": get_memory,       
         "load_memories": load_memories,
         "search_memories": search_memories,
     }
@@ -652,15 +708,22 @@ def ai_speak(self):
             for m in recent:
                 memory_lines.append(f"- {m['key']}: {m['content']}")
             memory_context = "\nPrevious memories:\n" + "\n".join(memory_lines) + "\n"
-
+        name_mem = get_memory("user_name")
+        saved_name = name_mem["content"] if name_mem else self.name
         messages = [
             {
                 "role": "system",
                 "content": (
-                    SYSTEM_PROMPT + memory_context
-                ),
+                    SYSTEM_PROMPT + 
+                    f"\n\n[SYSTEM NOTE: User's current saved name is '{saved_name}'. "
+                    f"If they mention a different name, update memory. "
+                    f"If they ask 'what's my name?', tell them the saved name.]\n"
+                )
             },
-            {"role": "user", "content": f"My name is {self.name}.\n\n{self.text}"},
+            {
+                "role": "user",
+                "content": self.text
+            },
         ]
         md = Markdown("")
         panel = Panel(
@@ -722,7 +785,7 @@ def ai_type(self):
                    SYSTEM_PROMPT + memory_context
                 ),
             },
-            {"role": "user", "content": f"My name is {self.name}.\n\n{self.text}"},
+            {"role": "user", "content": f"My name is {self.name} if my new name is not saved on your memory.\n\n{self.text}"},
         ]
         md = Markdown("")
         panel = Panel(
