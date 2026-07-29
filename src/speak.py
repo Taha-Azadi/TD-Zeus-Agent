@@ -1,7 +1,5 @@
 from src.utils import (
     generate_and_bye,
-    generate_and_hello,
-    open_any,
     sites,
     hey_Zeus,
     takeCommand,
