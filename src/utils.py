@@ -18,7 +18,7 @@ try:
     from rich.console import Console
     from rich.markdown import Markdown
     from rich.panel import Panel
-    from rich.live import Live
+    from rich.live import Live 
     _HAS_RICH = True
     console = Console()
 except ImportError:
@@ -392,6 +392,7 @@ def _run_conversation_with_tools(messages, model="nvidia/nemotron-3-ultra-550b-a
             "tool_choice": "auto",
         }
 
+        # FIX: on_token رو مستقیم پاس بده نه wrapper
         content, thinking, tool_calls = _stream_chat_completion(
             payload, on_token or (lambda t, f: None), on_thinking_done
         )
