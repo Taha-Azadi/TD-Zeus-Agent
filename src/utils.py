@@ -150,7 +150,22 @@ TOOLS_SCHEMA = [
             "description": "Get current date/time.",
             "parameters": {"type": "object", "properties": {}, "required": []}
         }
-    }
+    },
+        {
+        "type": "function",
+        "function": {
+            "name": "write_binary_file",
+            "description": "Write binary data to a file (for images, docx, etc).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filepath": {"type": "string"},
+                    "content_bytes": {"type": "string", "description": "Base64-encoded bytes"}
+                },
+                "required": ["filepath", "content_bytes"]
+            }
+        }
+    },
 ]
 
 
@@ -206,7 +221,14 @@ def write_file_content(filepath, content):
         return f"Saved: {p}"
     except Exception as e:
         return f"Error: {e}"
-
+def write_binary_file(filepath, content_bytes):
+    try:
+        p = Path(filepath).expanduser()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(content_bytes)
+        return f"Saved: {p}"
+    except Exception as e:
+        return f"Error: {e}"
 
 def get_system_info():
     try:
@@ -282,6 +304,7 @@ def execute_tool(name, arguments):
         "list_directory": list_directory,
         "read_file_content": read_file_content,
         "write_file_content": write_file_content,
+        "write_binary_file": write_binary_file,
         "get_system_info": get_system_info,
         "take_screenshot": take_screenshot,
         "open_application": open_application,
@@ -450,7 +473,7 @@ def _thinking_spinner():
 # ==================== AI FUNCTIONS ====================
 
 
-def ai_speak(self):
+def ai_speak(user_name, user_text):
     md_buffer = [""]
 
     try:
@@ -463,8 +486,20 @@ def ai_speak(self):
                     "Use tools when needed. Respond as Zeus Agent with Markdown."
                 ),
             },
-            {"role": "user", "content": f"My name is {self.name}.\n\n{self.text}"},
+            {"role": "user", "content": f"My name is {user_name}.\n\n{user_text}"},
         ]
+
+        if not _HAS_RICH or console is None:
+            # Fallback بدون rich
+            full_content, _ = _run_conversation_with_tools(messages)
+            print(f"\n{'='*50}")
+            print("  Zeus Agent")
+            print(f"{'='*50}")
+            print(full_content)
+            print(f"{'='*50}\n")
+            if full_content:
+                say(full_content)
+            return
 
         md = Markdown("")
         panel = Panel(
@@ -503,10 +538,13 @@ def ai_speak(self):
             say(full_content)
 
     except Exception as e:
-        console.print(f"[bold red]❌ Error: {e}[/bold red]")
+        if _HAS_RICH and console:
+            console.print(f"[bold red]❌ Error: {e}[/bold red]")
+        else:
+            print(f"❌ Error: {e}")
 
 
-def ai_type(self):
+def ai_type(user_name, user_text):
     md_buffer = [""]
 
     try:
@@ -519,8 +557,17 @@ def ai_type(self):
                     "Think step by step. Use Markdown."
                 ),
             },
-            {"role": "user", "content": f"My name is {self.name}.\n\n{self.text}"},
+            {"role": "user", "content": f"My name is {user_name}.\n\n{user_text}"},
         ]
+
+        if not _HAS_RICH or console is None:
+            full_content, _ = _run_conversation_with_tools(messages)
+            print(f"\n{'='*50}")
+            print("  Zeus Agent")
+            print(f"{'='*50}")
+            print(full_content)
+            print(f"{'='*50}\n")
+            return
 
         md = Markdown("")
         panel = Panel(
@@ -556,7 +603,10 @@ def ai_type(self):
         console.print()
 
     except Exception as e:
-        console.print(f"[bold red]❌ Error: {e}[/bold red]")
+        if _HAS_RICH and console:
+            console.print(f"[bold red]❌ Error: {e}[/bold red]")
+        else:
+            print(f"❌ Error: {e}")
 
 # ==================== PRINT HELPERS ====================
 
