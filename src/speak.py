@@ -25,15 +25,11 @@ class Speak:
 
             if self.text != None:
                 print(f"user: {self.text}")
-                if "open" in self.text.lower():
-                    open_any(self)
                 if "bye" in self.text.lower():
                     generate_and_bye(self)
                     break
                 if "the time" in self.text.lower() or "time is" in self.text.lower():
                     wtime(self)
-                elif "hello" in self.text.lower() or "hi " in self.text.lower():
-                    generate_and_hello(self)
                 elif "clear" in self.text.lower() or "cls " in self.text.lower():
                     clear()
                 elif any(
