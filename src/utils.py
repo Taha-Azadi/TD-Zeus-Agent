@@ -310,7 +310,7 @@ def _stream_chat_completion(payload, on_token, on_thinking_done=None):
         headers=headers, json=payload, stream=True, timeout=60
     )
     if response.status_code == 401:
-        raise PermissionError("Invalid API Key (401) Reopen Zeus Agent")
+        raise PermissionError("Invalid API Key (401)")
     elif response.status_code != 200:
         raise ConnectionError(f"HTTP {response.status_code}: {response.text[:200]}")
 
@@ -374,7 +374,7 @@ def _stream_chat_completion(payload, on_token, on_thinking_done=None):
     return full_text, full_thinking, tool_calls_buffer
 
 
-def _run_conversation_with_tools(messages, model="nvidia/nemotron-3-ultra-550b-a55b:free",
+def _run_conversation_with_tools(messages, model="gnvidia/nemotron-3-ultra-550b-a55b:free",
                                   on_token=None, on_thinking_done=None, max_iterations=5):
     iteration = 0
     final_content = ""
@@ -451,21 +451,7 @@ def _thinking_spinner():
 
 
 def ai_speak(self):
-    stop_event = threading.Event()
-    content_started = threading.Event()
     md_buffer = [""]
-
-    def spinner():
-        chars = itertools.cycle(['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'])
-        while not stop_event.is_set() and not content_started.is_set():
-            sys.stdout.write(f"\r\033[90m🧠 Thinking {next(chars)}\033[0m")
-            sys.stdout.flush()
-            _time.sleep(0.08)
-        sys.stdout.write("\r" + " "*30 + "\r")
-        sys.stdout.flush()
-
-    t = threading.Thread(target=spinner)
-    t.start()
 
     try:
         messages = [
@@ -490,13 +476,10 @@ def ai_speak(self):
         )
 
         def on_thinking_done(thinking):
-            content_started.set()
             if thinking:
                 console.print(f"\n[dim]💭 {thinking[:300]}{'...' if len(thinking)>300 else ''}[/dim]\n")
 
         def on_token(token, full):
-            if not content_started.is_set():
-                content_started.set()
             md_buffer[0] += token
             new_md = Markdown(md_buffer[0])
             new_panel = Panel(
@@ -508,10 +491,11 @@ def ai_speak(self):
             )
             live.update(new_panel)
 
-        with Live(panel, console=console, refresh_per_second=20, vertical_overflow="visible") as live:
-            full_content, _ = _run_conversation_with_tools(
-                messages, on_token=on_token, on_thinking_done=on_thinking_done
-            )
+        with console.status("[bold cyan]🧠 Thinking...[/bold cyan]", spinner="dots"):
+            with Live(panel, console=console, refresh_per_second=20, vertical_overflow="visible") as live:
+                full_content, _ = _run_conversation_with_tools(
+                    messages, on_token=on_token, on_thinking_done=on_thinking_done
+                )
 
         console.print()
 
@@ -520,27 +504,10 @@ def ai_speak(self):
 
     except Exception as e:
         console.print(f"[bold red]❌ Error: {e}[/bold red]")
-    finally:
-        stop_event.set()
-        t.join()
 
 
 def ai_type(self):
-    stop_event = threading.Event()
-    content_started = threading.Event()
     md_buffer = [""]
-
-    def spinner():
-        chars = itertools.cycle(['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'])
-        while not stop_event.is_set() and not content_started.is_set():
-            sys.stdout.write(f"\r\033[90m🧠 Thinking {next(chars)}\033[0m")
-            sys.stdout.flush()
-            _time.sleep(0.08)
-        sys.stdout.write("\r" + " "*30 + "\r")
-        sys.stdout.flush()
-
-    t = threading.Thread(target=spinner)
-    t.start()
 
     try:
         messages = [
@@ -565,13 +532,10 @@ def ai_type(self):
         )
 
         def on_thinking_done(thinking):
-            content_started.set()
             if thinking:
                 console.print(f"\n[dim]💭 {thinking[:300]}{'...' if len(thinking)>300 else ''}[/dim]\n")
 
         def on_token(token, full):
-            if not content_started.is_set():
-                content_started.set()
             md_buffer[0] += token
             new_md = Markdown(md_buffer[0])
             new_panel = Panel(
@@ -583,18 +547,16 @@ def ai_type(self):
             )
             live.update(new_panel)
 
-        with Live(panel, console=console, refresh_per_second=20, vertical_overflow="visible") as live:
-            full_content, _ = _run_conversation_with_tools(
-                messages, on_token=on_token, on_thinking_done=on_thinking_done
-            )
+        with console.status("[bold cyan]🧠 Thinking...[/bold cyan]", spinner="dots"):
+            with Live(panel, console=console, refresh_per_second=20, vertical_overflow="visible") as live:
+                full_content, _ = _run_conversation_with_tools(
+                    messages, on_token=on_token, on_thinking_done=on_thinking_done
+                )
 
         console.print()
 
     except Exception as e:
         console.print(f"[bold red]❌ Error: {e}[/bold red]")
-    finally:
-        stop_event.set()
-        t.join()
 
 # ==================== PRINT HELPERS ====================
 
