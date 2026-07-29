@@ -19,16 +19,16 @@
 <p><i>Talk to your computer. It listens, learns, and acts.</i></p>
 
 <p>
-  <a href="#features">✨ Features</a> •
-  <a href="#demo">🎬 Demo</a> •
-  <a href="#installation">📦 Installation</a> •
-  <a href="#usage">🚀 Usage</a> •
-  <a href="#tools">🔧 Tools</a> •
-  <a href="#memory">🧠 Memory</a> •
-  <a href="#architecture">🏗️ Architecture</a> •
-  <a href="#tech-stack">🛠️ Tech Stack</a> •
-  <a href="#troubleshooting">🔍 Troubleshooting</a> •
-  <a href="#roadmap">🗺️ Roadmap</a>
+  <a href="#-features">✨ Features</a> •
+  <a href="#-demo">🎬 Demo</a> •
+  <a href="#-installation">📦 Installation</a> •
+  <a href="#-usage">🚀 Usage</a> •
+  <a href="#-tools">🔧 Tools</a> •
+  <a href="#-memory">🧠 Memory</a> •
+  <a href="#-architecture">🏗️ Architecture</a> •
+  <a href="#-tech-stack">🛠️ Tech Stack</a> •
+  <a href="#-troubleshooting">🔍 Troubleshooting</a> •
+  <a href="#-roadmap">🗺️ Roadmap</a>
 </p>
 
 </div>
@@ -411,6 +411,9 @@ TD-Zeus-Agent/
 ├── 📄 README.md                        # This file
 ├── 📄 LICENSE                          # MIT License
 │
+├── 🔑 ai.txt                       # API key storage
+├── 👤 ask2.txt                     # User name
+└── 🧠 zeus_memory.json            # Persistent memory
 ├── 📁 src/
 │   ├── 🎙️ speak.py                     # Voice interaction handler
 │   ├── ⌨️ type.py                      # Text interaction handler
@@ -419,20 +422,11 @@ TD-Zeus-Agent/
 │   ├── 🤖 ai_engine.py                 # OpenRouter streaming
 │   └── 🎨 ui.py                        # Rich terminal components
 │
-├── 📁 config/
-│   ├── 🔑 ai.txt                       # API key storage
-│   ├── 👤 ask2.txt                     # User name
-│   └── 🧠 zeus_memory.json            # Persistent memory
-│
 ├── 📁 docs/
 │   ├── 📖 usage.md                     # Extended documentation
-│   ├── 🔍 troubleshooting.md         # Common issues
-│   └── 🗺️ roadmap.md                   # Future plans
 │
 └── 📁 screenshots/
     ├── 🖼️ banner.png                   # App banner
-    ├── 🖼️ demo_voice.png              # Voice mode demo
-    └── 🖼️ demo_tools.png              # Tool calling demo
 ```
 
 ---
@@ -495,19 +489,19 @@ python -c "from src.memory import load_memories; print(load_memories())"
 
 ## 🗺️ Roadmap
 
-### v1.1.0 (Coming Soon)
+### v1.0.2 (Coming Soon)
 - [ ] 🌐 Multi-language support (Persian, Arabic, French)
 - [ ] 🔌 Plugin system for custom tools
 - [ ] 📧 Email integration (read/send)
 - [ ] 🗓️ Calendar and reminder system
 
-### v1.2.0 (Planned)
+### v1.0.3 (Planned)
 - [ ] 🖼️ Image generation via DALL-E/Stable Diffusion
 - [ ] 📊 Data visualization (charts, graphs)
 - [ ] 🔗 Web scraping and data extraction
 - [ ] 🤝 Multi-user support
 
-### v2.0.0 (Future)
+### v2.0.4 (Future)
 - [ ] 🧠 Local LLM support (Llama, Mistral)
 - [ ] 📱 Mobile companion app
 - [ ] ☁️ Cloud sync for memories
