@@ -24,7 +24,7 @@ try:
 except ImportError:
     _HAS_RICH = False
     console = None
-
+MEMORY_FILE = "zeus_memory.json"
 
 
 # ==================== TOOLS SCHEMA ====================
@@ -180,10 +180,92 @@ TOOLS_SCHEMA = [
             }
         }
     },
+        {
+        "type": "function",
+        "function": {
+            "name": "save_memory",
+            "description": "Save a piece of information to long-term memory.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "key": {"type": "string", "description": "Short label for the memory"},
+                    "content": {"type": "string", "description": "The information to remember"}
+                },
+                "required": ["key", "content"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "load_memories",
+            "description": "Load all saved memories.",
+            "parameters": {"type": "object", "properties": {}, "required": []}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_memories",
+            "description": "Search memories by keyword.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"}
+                },
+                "required": ["query"]
+            }
+        }
+    }
 ]
 
 
 # ==================== TOOL IMPLEMENTATIONS ====================
+
+def _load_memory_file():
+    try:
+        with open(MEMORY_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def _save_memory_file(data):
+    with open(MEMORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def save_memory(key, content):
+    memories = _load_memory_file()
+    memory = {
+        "id": len(memories) + 1,
+        "timestamp": datetime.now().isoformat(),
+        "key": key,
+        "content": content
+    }
+    memories.append(memory)
+    _save_memory_file(memories)
+    return f"✅ Memory saved: '{key}'"
+
+
+def load_memories():
+    memories = _load_memory_file()
+    if not memories:
+        return "No memories yet."
+    lines = []
+    for m in memories[-20:]:  # آخرین ۲۰ تا
+        lines.append(f"[{m['id']}] {m['timestamp'][:10]} | {m['key']}: {m['content'][:100]}")
+    return "\n".join(lines)
+
+
+def search_memories(query):
+    memories = _load_memory_file()
+    query = query.lower()
+    results = []
+    for m in memories:
+        if query in m['key'].lower() or query in m['content'].lower():
+            results.append(f"[{m['id']}] {m['timestamp'][:10]} | {m['key']}: {m['content'][:150]}")
+    return "\n".join(results) if results else "No matching memories found."
 
 def run_shell_command(command, cwd=None):
     try:
@@ -341,6 +423,9 @@ def execute_tool(name, arguments):
         "play_music": play_music,
         "open_website": open_website,
         "get_current_time": get_current_time,
+        "save_memory": save_memory,
+        "load_memories": load_memories,
+        "search_memories": search_memories,
     }
     func = tools.get(name)
     if not func:
@@ -517,6 +602,15 @@ def ai_speak(self):
     md_buffer = [""]
 
     try:
+        memories = _load_memory_file()
+        memory_context = ""
+        if memories:
+            recent = memories[-5:]
+            memory_lines = []
+            for m in recent:
+                memory_lines.append(f"- {m['key']}: {m['content']}")
+            memory_context = "\nPrevious memories:\n" + "\n".join(memory_lines) + "\n"
+
         messages = [
             {
                 "role": "system",
@@ -524,11 +618,12 @@ def ai_speak(self):
                     "You ARE Zeus Agent — created by Taha-Azadi. "
                     "You have FULL ACCESS to the user's computer via tools. "
                     "Use tools when needed. Respond as Zeus Agent with Markdown."
+                    "When you learn something important about the user, use save_memory tool."
+                    + memory_context
                 ),
             },
             {"role": "user", "content": f"My name is {self.name}.\n\n{self.text}"},
         ]
-
         md = Markdown("")
         panel = Panel(
             md,
@@ -573,18 +668,28 @@ def ai_type(self):
     md_buffer = [""]
 
     try:
+        memories = _load_memory_file()
+        memory_context = ""
+        if memories:
+            recent = memories[-5:] 
+            memory_lines = []
+            for m in recent:
+                memory_lines.append(f"- {m['key']}: {m['content']}")
+            memory_context = "\nPrevious memories:\n" + "\n".join(memory_lines) + "\n"
+
         messages = [
             {
                 "role": "system",
                 "content": (
                     "You ARE Zeus Agent — created by Taha-Azadi. "
                     "You have FULL ACCESS to the user's computer via tools. "
-                    "Think step by step. Use Markdown."
+                    "Use tools when needed. Respond as Zeus Agent with Markdown."
+                    "When you learn something important about the user, use save_memory tool."
+                    + memory_context
                 ),
             },
             {"role": "user", "content": f"My name is {self.name}.\n\n{self.text}"},
         ]
-
         md = Markdown("")
         panel = Panel(
             md,
