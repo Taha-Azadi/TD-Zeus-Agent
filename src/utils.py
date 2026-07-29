@@ -18,11 +18,13 @@ try:
     from rich.console import Console
     from rich.markdown import Markdown
     from rich.panel import Panel
+    from rich.live import Live
     _HAS_RICH = True
     console = Console()
 except ImportError:
     _HAS_RICH = False
     console = None
+
 
 
 # ==================== TOOLS SCHEMA ====================
@@ -296,7 +298,7 @@ def execute_tool(name, arguments):
         return f"Error in {name}: {e}"
 
 
-# ==================== STREAMING + THINKING + TOOLS ====================
+# ==================== STREAMING + TOOLS ====================
 
 def _stream_chat_completion(payload, on_token, on_thinking_done=None):
     headers = {
@@ -308,7 +310,7 @@ def _stream_chat_completion(payload, on_token, on_thinking_done=None):
         headers=headers, json=payload, stream=True, timeout=60
     )
     if response.status_code == 401:
-        raise PermissionError("Invalid API Key (401) reopen zeus agent")
+        raise PermissionError("Invalid API Key (401)")
     elif response.status_code != 200:
         raise ConnectionError(f"HTTP {response.status_code}: {response.text[:200]}")
 
@@ -416,9 +418,9 @@ def _run_conversation_with_tools(messages, model="nvidia/nemotron-3-ultra-550b-a
             except json.JSONDecodeError:
                 args = {}
 
-            print(f"\n\033[1;33m🔧 {name}({json.dumps(args, ensure_ascii=False)[:80]})\033[0m")
+            console.print(f"\n[bold yellow]🔧 {name}({json.dumps(args, ensure_ascii=False)[:80]})[/bold yellow]")
             result = execute_tool(name, args)
-            print(f"\033[90m📤 {str(result)[:500]}{'...' if len(str(result))>500 else ''}\033[0m\n")
+            console.print(f"[dim]📤 {str(result)[:500]}{'...' if len(str(result))>500 else ''}[/dim]\n")
 
             messages.append({
                 "role": "tool",
@@ -428,7 +430,6 @@ def _run_conversation_with_tools(messages, model="nvidia/nemotron-3-ultra-550b-a
             })
 
     return final_content, final_thinking
-
 
 # ==================== SPINNER ====================
 
@@ -454,22 +455,7 @@ def _thinking_spinner():
 def ai_speak(self):
     stop_event = threading.Event()
     content_started = threading.Event()
-    thinking_text = [""]
-
-    def on_thinking_done(thinking):
-        thinking_text[0] = thinking
-        content_started.set()
-        sys.stdout.write("\r" + " "*30 + "\r")
-        sys.stdout.flush()
-        if thinking:
-            print(f"\033[90m💭 {thinking[:300]}{'...' if len(thinking)>300 else ''}\033[0m\n")
-
-    def on_token(token, full):
-        if not content_started.is_set():
-            content_started.set()
-            sys.stdout.write("\r" + " "*30 + "\r")
-            sys.stdout.flush()
-        print(token, end='', flush=True)
+    md_buffer = [""]
 
     def spinner():
         chars = itertools.cycle(['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'])
@@ -496,21 +482,48 @@ def ai_speak(self):
             {"role": "user", "content": f"My name is {self.name}.\n\n{self.text}"},
         ]
 
-        print(f"\n\033[1;36m{'═'*50}\033[0m")
-        print(f"\033[1;36m  ⚡ Zeus Agent — Live Stream\033[0m")
-        print(f"\033[1;36m{'═'*50}\033[0m\n")
-
-        full_content, _ = _run_conversation_with_tools(
-            messages, on_token=on_token, on_thinking_done=on_thinking_done
+        # ساخت Panel خالی برای شروع
+        md = Markdown("")
+        panel = Panel(
+            md,
+            title="[bold cyan]Zeus Agent[/]",
+            border_style="cyan",
+            subtitle="⚡ Live Stream",
+            padding=(1, 2)
         )
 
-        print("\n")
+        def on_thinking_done(thinking):
+            content_started.set()
+            if thinking:
+                console.print(f"\n[dim]💭 {thinking[:300]}{'...' if len(thinking)>300 else ''}[/dim]\n")
+
+        def on_token(token, full):
+            if not content_started.is_set():
+                content_started.set()
+            md_buffer[0] += token
+            new_md = Markdown(md_buffer[0])
+            new_panel = Panel(
+                new_md,
+                title="[bold cyan]Zeus Agent[/]",
+                border_style="cyan",
+                subtitle="⚡ Live Stream",
+                padding=(1, 2)
+            )
+            live.update(new_panel)
+
+        with Live(panel, console=console, refresh_per_second=20, vertical_overflow="visible") as live:
+            full_content, _ = _run_conversation_with_tools(
+                messages, on_token=on_token, on_thinking_done=on_thinking_done
+            )
+
+        # newline بعد از Panel
+        console.print()
 
         if full_content:
             say(full_content)
 
     except Exception as e:
-        _print_error(f"Error: {e}")
+        console.print(f"[bold red]❌ Error: {e}[/bold red]")
     finally:
         stop_event.set()
         t.join()
@@ -519,22 +532,7 @@ def ai_speak(self):
 def ai_type(self):
     stop_event = threading.Event()
     content_started = threading.Event()
-    thinking_text = [""]
-
-    def on_thinking_done(thinking):
-        thinking_text[0] = thinking
-        content_started.set()
-        sys.stdout.write("\r" + " "*30 + "\r")
-        sys.stdout.flush()
-        if thinking:
-            print(f"\033[90m💭 {thinking[:300]}{'...' if len(thinking)>300 else ''}\033[0m\n")
-
-    def on_token(token, full):
-        if not content_started.is_set():
-            content_started.set()
-            sys.stdout.write("\r" + " "*30 + "\r")
-            sys.stdout.flush()
-        print(token, end='', flush=True)
+    md_buffer = [""]
 
     def spinner():
         chars = itertools.cycle(['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'])
@@ -561,22 +559,46 @@ def ai_type(self):
             {"role": "user", "content": f"My name is {self.name}.\n\n{self.text}"},
         ]
 
-        print(f"\n\033[1;36m{'═'*50}\033[0m")
-        print(f"\033[1;36m  ⚡ Zeus Agent — Live Stream\033[0m")
-        print(f"\033[1;36m{'═'*50}\033[0m\n")
-
-        full_content, _ = _run_conversation_with_tools(
-            messages, on_token=on_token, on_thinking_done=on_thinking_done
+        md = Markdown("")
+        panel = Panel(
+            md,
+            title="[bold cyan]Zeus Agent[/]",
+            border_style="cyan",
+            subtitle="⚡ Live Stream",
+            padding=(1, 2)
         )
 
-        print("\n")
+        def on_thinking_done(thinking):
+            content_started.set()
+            if thinking:
+                console.print(f"\n[dim]💭 {thinking[:300]}{'...' if len(thinking)>300 else ''}[/dim]\n")
+
+        def on_token(token, full):
+            if not content_started.is_set():
+                content_started.set()
+            md_buffer[0] += token
+            new_md = Markdown(md_buffer[0])
+            new_panel = Panel(
+                new_md,
+                title="[bold cyan]Zeus Agent[/]",
+                border_style="cyan",
+                subtitle="⚡ Live Stream",
+                padding=(1, 2)
+            )
+            live.update(new_panel)
+
+        with Live(panel, console=console, refresh_per_second=20, vertical_overflow="visible") as live:
+            full_content, _ = _run_conversation_with_tools(
+                messages, on_token=on_token, on_thinking_done=on_thinking_done
+            )
+
+        console.print()
 
     except Exception as e:
-        _print_error(f"Error: {e}")
+        console.print(f"[bold red]❌ Error: {e}[/bold red]")
     finally:
         stop_event.set()
         t.join()
-
 
 # ==================== PRINT HELPERS ====================
 
