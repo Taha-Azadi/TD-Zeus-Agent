@@ -310,7 +310,7 @@ def _stream_chat_completion(payload, on_token, on_thinking_done=None):
         headers=headers, json=payload, stream=True, timeout=60
     )
     if response.status_code == 401:
-        raise PermissionError("Invalid API Key (401)")
+        raise PermissionError("Invalid API Key (401) Re Open Zeus Agent")
     elif response.status_code != 200:
         raise ConnectionError(f"HTTP {response.status_code}: {response.text[:200]}")
 
