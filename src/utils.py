@@ -3,7 +3,8 @@ from random import choice as rchoice
 import speech_recognition as sr
 import win32com.client
 import subprocess, sys, os
-import difflib, datetime
+import difflib
+from datetime import datetime
 import platform
 import pyttsx3
 import requests
@@ -222,6 +223,7 @@ TOOLS_SCHEMA = [
 
 # ==================== TOOL IMPLEMENTATIONS ====================
 
+
 def _load_memory_file():
     try:
         with open(MEMORY_FILE, "r", encoding="utf-8") as f:
@@ -239,7 +241,7 @@ def save_memory(key, content):
     memories = _load_memory_file()
     memory = {
         "id": len(memories) + 1,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now().isoformat(),  # ← الان درسته!
         "key": key,
         "content": content
     }
@@ -253,7 +255,7 @@ def load_memories():
     if not memories:
         return "No memories yet."
     lines = []
-    for m in memories[-20:]:  # آخرین ۲۰ تا
+    for m in memories[-20:]:
         lines.append(f"[{m['id']}] {m['timestamp'][:10]} | {m['key']}: {m['content'][:100]}")
     return "\n".join(lines)
 
@@ -1113,17 +1115,17 @@ def open_any_type(self):
 
 
 def wtime(self):
-    hour = datetime.datetime.now().strftime("%H")
-    min = datetime.datetime.now().strftime("%M")
-    sec = datetime.datetime.now().strftime("%S")
+    hour = datetime.now().strftime("%H")
+    min = datetime.now().strftime("%M")
+    sec = datetime.now().strftime("%S")
     say(f"{self.name}; the time is {hour} hours and {min} minutes and {sec}")
     print(f"Zeus: {self.name} the time is {hour}:{min}:{sec}")
 
 
 def time_type(self):
-    hour = datetime.datetime.now().strftime("%H")
-    min = datetime.datetime.now().strftime("%M")
-    sec = datetime.datetime.now().strftime("%S")
+    hour = datetime.now().strftime("%H")
+    min = datetime.now().strftime("%M")
+    sec = datetime.now().strftime("%S")
     print(f"Zeus: {self.name} the time is {hour}:{min}:{sec}")
 
 
