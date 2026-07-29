@@ -1,7 +1,5 @@
 from src.utils import (
     generate_and_bye_type,
-    generate_and_hello_type,
-    open_any_type,
     sites,
     hey_Zeus_type,
     time_type,
