@@ -198,7 +198,6 @@ python main.py
 |------|---------|-------|--------|----------|
 | 🎙️ **Speak** | `speak` | Microphone | Voice + Text | Hands-free tasks |
 | ⌨️ **Type** | `type` | Keyboard | Text only | Complex commands |
-| 🤖 **Auto** | `auto` | Both | Both | Mixed usage |
 
 ### Built-in Voice/Text Commands
 
